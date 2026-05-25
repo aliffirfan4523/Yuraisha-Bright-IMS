@@ -160,3 +160,108 @@ def logout():
     session.clear()
     flash("You have been logged out.", "info")
     return redirect(url_for("main.login"))
+
+@main.route("/inventory")
+@login_required
+def inventory():
+    # Mock data or query from inventory_items
+    connection = None
+    cursor = None
+    items = []
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM inventory_items ORDER BY item_id DESC")
+        items = cursor.fetchall()
+    except Error:
+        pass
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None and connection.is_connected():
+            connection.close()
+
+    return render_template("inventory.html", items=items)
+
+
+@main.route("/usage")
+@login_required
+def usage():
+    return render_template("usage.html")
+
+
+@main.route("/alerts")
+@login_required
+def alerts():
+    connection = None
+    cursor = None
+    alerts_data = []
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM notifications ORDER BY created_at DESC")
+        alerts_data = cursor.fetchall()
+    except Error:
+        pass
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None and connection.is_connected():
+            connection.close()
+            
+    return render_template("alerts.html", alerts=alerts_data)
+
+
+@main.route("/tracking")
+@login_required
+def tracking():
+    connection = None
+    cursor = None
+    deliveries = []
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT d.*, i.item_name 
+            FROM supplier_deliveries d
+            LEFT JOIN inventory_items i ON d.item_id = i.item_id
+            ORDER BY expected_date DESC
+        """)
+        deliveries = cursor.fetchall()
+    except Error:
+        pass
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None and connection.is_connected():
+            connection.close()
+            
+    return render_template("tracking.html", deliveries=deliveries)
+
+
+@main.route("/transactions")
+@login_required
+def transactions():
+    connection = None
+    cursor = None
+    txs = []
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM client_transactions ORDER BY transaction_date DESC")
+        txs = cursor.fetchall()
+    except Error:
+        pass
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None and connection.is_connected():
+            connection.close()
+            
+    return render_template("transactions.html", transactions=txs)
+
+
+@main.route("/reports")
+@login_required
+def reports():
+    return render_template("reports.html")
