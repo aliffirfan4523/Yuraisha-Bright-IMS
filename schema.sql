@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS client_transactions (
     transaction_id INT AUTO_INCREMENT PRIMARY KEY,
     client_name VARCHAR(100) NOT NULL,
     boxes_sold INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    payment_status ENUM('pending', 'completed', 'failed') DEFAULT 'completed',
     transaction_date DATE NOT NULL,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

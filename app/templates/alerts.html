@@ -3,7 +3,7 @@
 {% block title %}System Alerts | Yuraisha Bright{% endblock %}
 
 {% block content %}
-<div class="top-bar mb-4" style="margin: -24px -32px 24px -32px; padding: 16px 32px; background: white; border-bottom: 1px solid #b9c3d4; border-radius: 8px 8px 0 0;">
+<div class="top-bar mb-4" style="margin: -24px -32px 24px -32px; padding: 16px 32px; background: var(--white); border-bottom: 1px solid #b9c3d4; border-radius: 8px 8px 0 0;">
     <h1 class="page-title">Inventory Management</h1>
     <div class="top-bar-actions">
         <div class="search-bar">
@@ -27,8 +27,8 @@
         <p class="text-muted mb-0">Monitor critical inventory levels, incoming shipments, and system health.</p>
     </div>
     <div class="d-flex gap-2">
-        <button class="app-btn app-btn-outline py-1 px-3" style="min-height: 40px; background: white;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 8px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Mark all as read</button>
-        <button class="app-btn app-btn-outline py-1 px-3" style="min-height: 40px; background: white; padding: 0 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><line x1="21" y1="4" x2="14" y2="4"></line><line x1="10" y1="4" x2="3" y2="4"></line><line x1="21" y1="12" x2="12" y2="12"></line><line x1="8" y1="12" x2="3" y2="12"></line><line x1="21" y1="20" x2="16" y2="20"></line><line x1="12" y1="20" x2="3" y2="20"></line><line x1="14" y1="2" x2="14" y2="6"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="16" y1="18" x2="16" y2="22"></line></svg></button>
+        <button class="app-btn app-btn-outline py-1 px-3" style="min-height: 40px; background: var(--white);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 8px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Mark all as read</button>
+        <button class="app-btn app-btn-outline py-1 px-3" style="min-height: 40px; background: var(--white); padding: 0 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><line x1="21" y1="4" x2="14" y2="4"></line><line x1="10" y1="4" x2="3" y2="4"></line><line x1="21" y1="12" x2="12" y2="12"></line><line x1="8" y1="12" x2="3" y2="12"></line><line x1="21" y1="20" x2="16" y2="20"></line><line x1="12" y1="20" x2="3" y2="20"></line><line x1="14" y1="2" x2="14" y2="6"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="16" y1="18" x2="16" y2="22"></line></svg></button>
     </div>
 </div>
 
@@ -58,7 +58,7 @@
 
                 <h6 class="text-muted fw-bold mb-3" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Priority</h6>
                 <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-sm d-flex align-items-center fw-bold" style="background: white; border: 1px solid #fca5a5; color: #ef4444; border-radius: 20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px;"><polyline points="20 6 9 17 4 12"></polyline></svg> High</button>
+                    <button class="btn btn-sm d-flex align-items-center fw-bold" style="background: var(--white); border: 1px solid #fca5a5; color: #ef4444; border-radius: 20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px;"><polyline points="20 6 9 17 4 12"></polyline></svg> High</button>
                     <button class="btn btn-sm d-flex align-items-center fw-bold" style="background: #fffbeb; border: 1px solid #fcd34d; color: #b45309; border-radius: 20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Medium</button>
                     <button class="btn btn-sm d-flex align-items-center fw-bold" style="background: #eff6ff; border: 1px solid #93c5fd; color: #1d4ed8; border-radius: 20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Low</button>
                 </div>
@@ -67,60 +67,44 @@
     </div>
 
     <div class="col-md-8 col-lg-9">
-        <h5 class="fw-bold mb-3" style="font-size: 16px;">Today</h5>
-        
-        <div class="alert-list-item priority-high">
-            <div class="alert-icon-container icon-red">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-            </div>
-            <div class="alert-content">
-                <div class="alert-header">
-                    <div>
-                        <span class="badge bg-danger bg-opacity-10 text-danger rounded-1 me-2 px-2" style="font-weight: 700; font-size: 10px; letter-spacing: 0.5px;">HIGH PRIORITY</span>
-                        <span class="text-muted">Low Stock</span>
-                    </div>
-                    <span class="text-muted">10:42 AM</span>
+        {% if alerts %}
+            {% for alert in alerts %}
+            <div class="alert-list-item {% if alert.type == 'low_stock' %}priority-high{% elif alert.type == 'delayed_delivery' %}priority-medium{% else %}priority-low{% endif %}" {% if alert.type == 'delayed_delivery' %}style="border-left: 4px solid #b45309;"{% endif %}>
+                <div class="alert-icon-container {% if alert.type == 'low_stock' %}icon-red{% else %}icon-blue{% endif %}">
+                    {% if alert.type == 'low_stock' %}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    {% elif alert.type == 'delayed_delivery' %}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                    {% else %}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    {% endif %}
                 </div>
-                <h4 class="alert-title">Critical shortage: Industrial Lubricant (SKU-LUB-992)</h4>
-                <p class="alert-desc">Current inventory level is below the minimum threshold (5 units remaining). Automatic reorder failed due to supplier API timeout.</p>
-            </div>
-        </div>
-
-        <div class="alert-list-item priority-medium" style="border-left: 4px solid #b45309;">
-            <div class="alert-icon-container icon-blue">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-            </div>
-            <div class="alert-content">
-                <div class="alert-header">
-                    <div>
-                        <span class="badge bg-warning bg-opacity-10 text-warning rounded-1 me-2 px-2" style="font-weight: 700; font-size: 10px; letter-spacing: 0.5px; color: #b45309 !important;">MEDIUM</span>
-                        <span class="text-muted">Delivery Arrival</span>
+                <div class="alert-content">
+                    <div class="alert-header">
+                        <div>
+                            {% if alert.type == 'low_stock' %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger rounded-1 me-2 px-2" style="font-weight: 700; font-size: 10px; letter-spacing: 0.5px;">HIGH PRIORITY</span>
+                            {% elif alert.type == 'delayed_delivery' %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning rounded-1 me-2 px-2" style="font-weight: 700; font-size: 10px; letter-spacing: 0.5px; color: #b45309 !important;">MEDIUM</span>
+                            {% else %}
+                            <span class="badge bg-primary bg-opacity-10 text-primary rounded-1 me-2 px-2" style="font-weight: 700; font-size: 10px; letter-spacing: 0.5px;">LOW</span>
+                            {% endif %}
+                            <span class="text-muted">{{ alert.type|replace('_', ' ')|title }}</span>
+                        </div>
+                        <span class="text-muted">{{ alert.created_at.strftime('%b %d, %H:%M') }}</span>
                     </div>
-                    <span class="text-muted">08:15 AM</span>
+                    <h4 class="alert-title">{{ alert.title }}</h4>
+                    <p class="alert-desc">{{ alert.message }}</p>
                 </div>
-                <h4 class="alert-title">Shipment #SHP-2044 Arrived at Dock B</h4>
-                <p class="alert-desc">Inbound shipment from Global Manufacturing Inc. has been received. Contains 40 pallets of raw materials awaiting QA inspection.</p>
             </div>
-        </div>
-
-        <h5 class="fw-bold mb-3 mt-4 pt-2" style="font-size: 16px;">Yesterday</h5>
-
-        <div class="alert-list-item priority-low">
-            <div class="alert-icon-container icon-blue">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5 text-muted">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <h5>All caught up!</h5>
+                <p>There are no new alerts at this time.</p>
             </div>
-            <div class="alert-content">
-                <div class="alert-header">
-                    <div>
-                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-1 me-2 px-2" style="font-weight: 700; font-size: 10px; letter-spacing: 0.5px;">LOW</span>
-                        <span class="text-muted">System Update</span>
-                    </div>
-                    <span class="text-muted">Yesterday, 11:30 PM</span>
-                </div>
-                <h4 class="alert-title">Scheduled Maintenance Completed</h4>
-                <p class="alert-desc">Database optimization and backup protocols ran successfully. System downtime was 14 minutes.</p>
-            </div>
-        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

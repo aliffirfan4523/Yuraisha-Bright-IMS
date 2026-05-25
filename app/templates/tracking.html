@@ -3,7 +3,7 @@
 {% block title %}Delivery Tracking | Yuraisha Bright{% endblock %}
 
 {% block content %}
-<div class="top-bar mb-4" style="margin: -24px -32px 24px -32px; padding: 16px 32px; background: white; border-bottom: 1px solid #b9c3d4; border-radius: 8px 8px 0 0;">
+<div class="top-bar mb-4" style="margin: -24px -32px 24px -32px; padding: 16px 32px; background: var(--white); border-bottom: 1px solid #b9c3d4; border-radius: 8px 8px 0 0;">
     <h1 class="page-title">Inventory Management</h1>
     <div class="top-bar-actions">
         <div class="search-bar">
@@ -44,8 +44,8 @@
                 <!-- Mock Map visual -->
                 <div class="position-absolute w-100 h-100 top-0 left-0" style="background: url('data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'40\\' height=\\'40\\'%3E%3Cpath d=\\'M0 0h40v40H0z\\' fill=\\'%23cbd5e1\\' fill-opacity=\\'0.2\\'/%3E%3Cpath d=\\'M0 0h1v40H0zm0 0h40v1H0z\\' fill=\\'%2394a3b8\\' fill-opacity=\\'0.1\\'/%3E%3C/svg%3E')"></div>
                 <div class="position-absolute" style="top: 35%; left: 35%; z-index: 10; text-align: center;">
-                    <svg viewBox="0 0 24 24" fill="white" stroke="#1d4ed8" stroke-width="2" style="width: 24px; height: 24px; margin-bottom: -4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                    <div class="bg-white px-2 py-1 shadow-sm mt-1" style="border-radius: 4px; font-size: 11px; font-weight: 600; color: #1e293b;">In Transit - SHP-882</div>
+                    <svg viewBox="0 0 24 24" fill="white" stroke="var(--blue-900)" stroke-width="2" style="width: 24px; height: 24px; margin-bottom: -4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <div class="bg-white px-2 py-1 shadow-sm mt-1" style="border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--ink);">In Transit - SHP-882</div>
                 </div>
                 <div class="position-absolute" style="top: 55%; left: 55%; z-index: 10; text-align: center;">
                     <svg viewBox="0 0 24 24" fill="white" stroke="#ef4444" stroke-width="2" style="width: 24px; height: 24px; margin-bottom: -4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
@@ -59,9 +59,9 @@
     <div class="col-lg-4">
         <h6 class="fw-bold mb-3" style="font-size: 16px;">Delivery Status</h6>
         <div class="d-flex flex-column gap-3">
-            <div class="card shadow-sm border-0" style="border-radius: 12px; background: #f8fafc;">
+            <div class="card shadow-sm border-0" style="border-radius: 12px; background: var(--panel);">
                 <div class="card-body p-3 d-flex align-items-center gap-3">
-                    <div class="alert-icon-container" style="background: #1d4ed8; color: white;">
+                    <div class="alert-icon-container" style="background: var(--blue-900); color: white;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
                     </div>
                     <div>
@@ -72,7 +72,7 @@
             </div>
             <div class="card shadow-sm border-0" style="border-radius: 12px;">
                 <div class="card-body p-3 d-flex align-items-center gap-3">
-                    <div class="alert-icon-container" style="background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1;">
+                    <div class="alert-icon-container" style="background: #f1f5f9; color: var(--ink); border: 1px solid #cbd5e1;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
                     <div>
@@ -139,28 +139,7 @@
                 </tr>
                 {% endfor %}
             {% else %}
-            <tr>
-                <td class="text-muted">TRK-9921</td>
-                <td class="fw-bold">Global Steel Corp</td>
-                <td>
-                    <div style="font-size: 13px; font-weight: 500;">PO-2023-A1</div>
-                    <div style="font-size: 11px; color: var(--muted);">Raw Aluminum Coils</div>
-                </td>
-                <td class="text-muted">Oct 24, 2023</td>
-                <td><span class="status-badge status-in-transit">In Transit</span></td>
-                <td><button class="icon-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg></button></td>
-            </tr>
-            <tr>
-                <td class="text-muted">TRK-9915</td>
-                <td class="fw-bold">Apex Manufacturing</td>
-                <td>
-                    <div style="font-size: 13px; font-weight: 500;">PO-2023-C2</div>
-                    <div style="font-size: 11px; color: var(--muted);">Machine Bearings</div>
-                </td>
-                <td class="text-danger">Oct 21, 2023</td>
-                <td><span class="status-badge status-delayed">Delayed</span></td>
-                <td><button class="icon-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg></button></td>
-            </tr>
+                <tr><td colspan="6" class="text-center py-4 text-muted">No pending deliveries found.</td></tr>
             {% endif %}
         </tbody>
     </table>

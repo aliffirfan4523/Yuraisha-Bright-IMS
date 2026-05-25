@@ -16,6 +16,78 @@
     --shadow: 0 18px 46px rgba(28, 48, 90, 0.16);
 }
 
+[data-theme="dark"] {
+    --blue-50: #0f172a;
+    --white: #1e293b;
+    --panel: #334155;
+    --ink: #f8fafc;
+    --muted: #94a3b8;
+    --line: #475569;
+    --shadow: 0 18px 46px rgba(0, 0, 0, 0.4);
+    
+    /* Stronger accents for white text readability in dark mode */
+    --blue-900: #3b82f6;
+    --blue-800: #60a5fa;
+    --blue-950: #2563eb;
+    --cyan-500: #0891b2;
+}
+
+[data-theme="dark"] .card, 
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .top-bar,
+[data-theme="dark"] .app-navbar,
+[data-theme="dark"] .app-sidebar,
+[data-theme="dark"] .table-header-controls {
+    background: var(--white) !important;
+    color: var(--ink) !important;
+    border-color: var(--line) !important;
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--panel) !important;
+    color: var(--ink) !important;
+    border-color: var(--line) !important;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--panel) !important;
+    color: var(--ink) !important;
+}
+
+[data-theme="dark"] .data-table th,
+[data-theme="dark"] .data-table td,
+[data-theme="dark"] .border-top,
+[data-theme="dark"] .border-bottom,
+[data-theme="dark"] .border {
+    border-color: var(--line) !important;
+    color: var(--ink) !important;
+}
+
+[data-theme="dark"] .data-table th {
+    background-color: var(--panel) !important;
+    color: var(--muted) !important;
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--muted) !important;
+}
+
+[data-theme="dark"] .btn-light {
+    background: var(--panel) !important;
+    color: var(--ink) !important;
+    border-color: var(--line) !important;
+}
+
+[data-theme="dark"] .nav-item:hover,
+[data-theme="dark"] .nav-item.active,
+[data-theme="dark"] .app-btn-outline:hover,
+[data-theme="dark"] .app-btn-primary {
+    color: #ffffff !important;
+}
+
+
 * {
     box-sizing: border-box;
 }
