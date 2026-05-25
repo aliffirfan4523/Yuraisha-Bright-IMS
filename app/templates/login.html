@@ -1,35 +1,84 @@
 {% extends "base.html" %}
 
 {% block title %}Login | Yuraisha Bright Inventory System{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+{% block navbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block main_class %}auth-page{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-5">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h1 class="h3 mb-3 text-center">Login</h1>
-                <p class="text-muted text-center mb-4">Enter your account details to continue.</p>
-
-                <form method="POST" action="{{ url_for('main.login') }}">
-                    <div class="mb-3">
-                        <label for="login_id" class="form-label">Username or email</label>
-                        <input type="text" class="form-control" id="login_id" name="login_id" placeholder="manager or manager@example.com" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary w-100">Login</button>
-                </form>
-
-                <p class="text-center mt-3 mb-0">
-                    Need an account?
-                    <a href="{{ url_for('main.register') }}">Register here</a>
-                </p>
-            </div>
+<section class="auth-card">
+    <div class="auth-brand-panel">
+        <div class="auth-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+                <path d="M5 7h14v13H5V7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M7 4h10v3H7V4Zm3 8h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
         </div>
+        <h1>Yuraisha Bright</h1>
+        <p>Sdn. Bhd.</p>
+        <span>Inventory Management</span>
     </div>
-</div>
+
+    <div class="auth-form-panel">
+        <h2>Sign In</h2>
+        <p class="auth-intro">Access your operational dashboard.</p>
+
+        <form method="POST" action="{{ url_for('main.login') }}" class="auth-form">
+            <div class="form-field">
+                <label for="login_id">Email Address</label>
+                <div class="input-shell">
+                    <span aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M4 6h16v12H4V6Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <input type="text" id="login_id" name="login_id" placeholder="admin@yuraishabright.com" required>
+                </div>
+            </div>
+
+            <div class="form-field">
+                <div class="label-row">
+                    <label for="password">Password</label>
+                    <a href="#">Forgot Password?</a>
+                </div>
+                <div class="input-shell">
+                    <span aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="5" y="10" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="12" cy="15" r="1.2" fill="currentColor"/>
+                        </svg>
+                    </span>
+                    <input type="password" id="password" name="password" placeholder="********" required>
+                    <button class="password-toggle" type="button" data-password-toggle aria-label="Show password">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <label class="check-row">
+                <input type="checkbox" name="remember">
+                <span>Remember me for 30 days</span>
+            </label>
+
+            <button type="submit" class="auth-submit">
+                <span>Sign In</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </form>
+
+        <p class="auth-switch">
+            Need an account?
+            <a href="{{ url_for('main.register') }}">Register here</a>
+        </p>
+        <p class="auth-restricted">System Access Restricted to Authorized Personnel Only.</p>
+    </div>
+</section>
 {% endblock %}

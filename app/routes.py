@@ -24,9 +24,14 @@ def login_required(view_function):
 
 
 @main.route("/")
-@login_required
 def index():
     return render_template("index.html")
+
+
+@main.route("/dashboard")
+@login_required
+def dashboard():
+    return render_template("dashboard.html")
 
 
 @main.route("/login", methods=["GET", "POST"])
@@ -74,7 +79,7 @@ def login():
         session["user_role"] = user["role"]
 
         flash("Login successful.", "success")
-        return redirect(url_for("main.index"))
+        return redirect(url_for("main.dashboard"))
 
     return render_template("login.html")
 

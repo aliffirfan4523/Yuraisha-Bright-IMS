@@ -1,86 +1,118 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard | Yuraisha Bright Inventory System{% endblock %}
+{% block title %}Yuraisha Bright Inventory Management{% endblock %}
+{% block body_class %}landing-body{% endblock %}
+{% block main_class %}landing-page{% endblock %}
 
 {% block content %}
-<section class="dashboard-header p-4 p-md-5 mb-4 rounded">
-    <div class="row align-items-center">
-        <div class="col-lg-8">
-            <h1 class="display-6 fw-bold mb-3">Inventory Management Dashboard</h1>
-            <p class="lead mb-0">
-                Welcome, {{ session.get("user_name") }}. You are logged in as {{ session.get("user_role", "")|title }}.
+<section class="hero-section">
+    <div class="app-container hero-grid">
+        <div class="hero-copy">
+            <p class="eyebrow">Inventory Management System</p>
+            <h1>Precision Inventory Management for Modern Manufacturing</h1>
+            <p class="hero-text">
+                Streamline your industrial operations with real-time tracking, intelligent usage calculations, and comprehensive reporting designed for high-stakes logistics.
             </p>
+            <div class="hero-actions">
+                <a class="btn app-btn app-btn-primary" href="{{ url_for('main.register') }}">Get Started</a>
+                <a class="btn app-btn app-btn-outline" href="#capabilities">Learn More</a>
+            </div>
         </div>
-        <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
-            <a href="{{ url_for('main.logout') }}" class="btn btn-light btn-lg">Logout</a>
+        <div class="hero-media" aria-label="Automated manufacturing facility">
+            <div class="factory-visual" aria-hidden="true">
+                <span class="ceiling-line line-1"></span>
+                <span class="ceiling-line line-2"></span>
+                <span class="ceiling-line line-3"></span>
+                <span class="floor-line floor-left"></span>
+                <span class="floor-line floor-right"></span>
+                <span class="machine machine-left machine-front"></span>
+                <span class="machine machine-right machine-front"></span>
+                <span class="machine machine-left machine-back"></span>
+                <span class="machine machine-right machine-back"></span>
+            </div>
         </div>
     </div>
 </section>
 
-<section class="row g-4">
-    <div class="col-md-6 col-xl-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h2 class="h5 card-title">Inventory Management</h2>
-                <p class="card-text text-muted">
-                    Future module for item records, stock levels, and inventory updates.
-                </p>
-            </div>
+<section class="capabilities-section" id="capabilities">
+    <div class="app-container">
+        <div class="section-heading">
+            <h2>Core Capabilities</h2>
+            <p>Engineered for clarity and control, our system reduces cognitive load while maximizing operational efficiency on the floor.</p>
+        </div>
+
+        <div class="capability-grid">
+            <article class="capability-card capability-wide">
+                <div class="capability-icon pin-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 21s6-5.4 6-11a6 6 0 0 0-12 0c0 5.6 6 11 6 11Z" fill="none" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="12" cy="10" r="2" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h3>Real-time Inventory Tracking</h3>
+                <p>Monitor stock levels across multiple warehouses with pinpoint accuracy. Our system updates instantly, ensuring you never face unexpected shortages or overstocking scenarios.</p>
+                <div class="bar-chart" aria-hidden="true">
+                    <span style="height: 32%"></span>
+                    <span style="height: 50%"></span>
+                    <span class="active" style="height: 74%"></span>
+                    <span style="height: 66%"></span>
+                    <span style="height: 24%"></span>
+                    <span style="height: 40%"></span>
+                </div>
+            </article>
+
+            <article class="capability-card">
+                <div class="capability-icon calc-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="5" y="3.5" width="14" height="17" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                        <path d="M8 8h8M8 12h2M12 12h4M8 16h2M12 16h1.5M15.5 16H17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h3>Production Usage Calculation</h3>
+                <p>Automatically forecast raw material requirements based on active production schedules. Minimize waste and optimize procurement cycles effortlessly.</p>
+            </article>
+
+            <article class="capability-card capability-small">
+                <div class="capability-icon gauge-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M4 17a8 8 0 1 1 16 0" fill="none" stroke="currentColor" stroke-width="2"/>
+                        <path d="m13 12 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M5 17h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <h3>Supplier Performance Monitoring</h3>
+                <p>Track delivery times, quality scores, and pricing trends for all your vendors in one unified dashboard.</p>
+            </article>
+
+            <article class="capability-card capability-wide report-card">
+                <div>
+                    <div class="capability-icon report-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="5" y="4" width="14" height="16" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9 15v2M12 11v6M15 13v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3>Comprehensive Operational Reporting</h3>
+                    <p>Generate detailed, audit-ready reports with a single click. Filter data by department, timeline, or material category to extract actionable insights instantly.</p>
+                </div>
+                <div class="progress-ring" aria-hidden="true">
+                    <span>100%</span>
+                </div>
+            </article>
         </div>
     </div>
+</section>
 
-    <div class="col-md-6 col-xl-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h2 class="h5 card-title">Usage Calculation</h2>
-                <p class="card-text text-muted">
-                    Future module for calculating stock usage and material consumption.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6 col-xl-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h2 class="h5 card-title">Alerts and Notifications</h2>
-                <p class="card-text text-muted">
-                    Future module for low-stock alerts and important inventory reminders.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6 col-xl-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h2 class="h5 card-title">Tracking</h2>
-                <p class="card-text text-muted">
-                    Future module for monitoring inventory movement and activity history.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6 col-xl-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h2 class="h5 card-title">Reporting</h2>
-                <p class="card-text text-muted">
-                    Future module for generating inventory summaries and reports.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6 col-xl-4">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h2 class="h5 card-title">Admin and Manager Users</h2>
-                <p class="card-text text-muted">
-                    Future roles for managing access and inventory responsibilities.
-                </p>
-            </div>
+<section class="about-section">
+    <div class="app-container">
+        <div class="about-copy">
+            <h2>About Yuraisha Bright Sdn. Bhd.</h2>
+            <p>
+                We are dedicated to bridging the gap between heavy industrial operations and sophisticated digital logistics. Our solutions are purpose-built for the manufacturing floor, prioritizing legibility, reliability, and precision.
+            </p>
+            <p>
+                We empower floor managers and procurement officers to maintain organized control over complex data sets, ensuring your business runs at peak efficiency.
+            </p>
         </div>
     </div>
 </section>
