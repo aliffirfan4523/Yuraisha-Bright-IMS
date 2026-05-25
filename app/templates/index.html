@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Yuraisha Bright Inventory System{% endblock %}
+
+{% block content %}
+<section class="dashboard-header p-4 p-md-5 mb-4 rounded">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="display-6 fw-bold mb-3">Inventory Management Dashboard</h1>
+            <p class="lead mb-0">
+                Welcome, {{ session.get("user_name") }}. You are logged in as {{ session.get("user_role", "")|title }}.
+            </p>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+            <a href="{{ url_for('main.logout') }}" class="btn btn-light btn-lg">Logout</a>
+        </div>
+    </div>
+</section>
+
+<section class="row g-4">
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5 card-title">Inventory Management</h2>
+                <p class="card-text text-muted">
+                    Future module for item records, stock levels, and inventory updates.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5 card-title">Usage Calculation</h2>
+                <p class="card-text text-muted">
+                    Future module for calculating stock usage and material consumption.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5 card-title">Alerts and Notifications</h2>
+                <p class="card-text text-muted">
+                    Future module for low-stock alerts and important inventory reminders.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5 card-title">Tracking</h2>
+                <p class="card-text text-muted">
+                    Future module for monitoring inventory movement and activity history.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5 card-title">Reporting</h2>
+                <p class="card-text text-muted">
+                    Future module for generating inventory summaries and reports.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5 card-title">Admin and Manager Users</h2>
+                <p class="card-text text-muted">
+                    Future roles for managing access and inventory responsibilities.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
