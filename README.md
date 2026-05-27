@@ -2,7 +2,7 @@
 
 A beginner-friendly Flask project for a Web-Based Inventory Management System for Yuraisha Bright Sdn. Bhd.
 
-This project now includes a basic Login/Register module connected to the `users` table in MySQL. Inventory, usage calculation, alerts, tracking, and reporting pages will be added later.
+This project implements the Chapter 4 P1 requirements for a Web-Based Inventory Management System for Yuraisha Bright Sdn. Bhd. It includes authentication, inventory, usage calculation, alerts, tracking, reporting, role access, CSRF protection, and audit logging.
 
 ## Planned System Users
 
@@ -112,13 +112,15 @@ http://127.0.0.1:5000
 
 ## Current Features
 
-- Register an Admin or Manager account
-- Save users to the `users` table using `full_name`, `username`, `email`, `password_hash`, and `role`
-- Store passwords safely using password hashing
-- Login with username/email and password
-- Use Flask sessions to remember the logged-in user
-- Logout
-- Protect the dashboard so only logged-in users can access it
+- Register and log in with hashed passwords
+- Admin user management for roles, active status, password reset, and account deletion
+- Manager/Admin inventory CRUD for boxes, plastic, and cooking oil
+- Usage calculation with saved calculation history
+- Automatic low-stock and delayed-delivery notifications
+- Supplier delivery tracking CRUD
+- Client transaction CRUD with payment status
+- Inventory, stock summary, supplier, and transaction reports with CSV export
+- CSRF protection for POST forms, role checks, hardened session cookie settings, validation, and audit logs
 
 ## Current Routes
 
@@ -126,10 +128,30 @@ http://127.0.0.1:5000
 - Login: `http://127.0.0.1:5000/login`
 - Register: `http://127.0.0.1:5000/register`
 - Logout: `http://127.0.0.1:5000/logout`
+- Admin Users: `http://127.0.0.1:5000/admin/users`
+- Inventory: `http://127.0.0.1:5000/inventory`
+- Usage: `http://127.0.0.1:5000/usage`
+- Alerts: `http://127.0.0.1:5000/alerts`
+- Tracking: `http://127.0.0.1:5000/tracking`
+- Transactions: `http://127.0.0.1:5000/transactions`
+- Reports: `http://127.0.0.1:5000/reports`
+
+## Database Migration and Seed
+
+For an existing local database, run:
+
+```bash
+python migrate_and_seed.py
+```
+
+If the database has no users, the script creates a default administrator:
+
+```text
+Username: admin
+Password: Admin123
+```
 
 ## Notes
 
-- MySQL is used by the Login/Register module only at this stage.
-- The other database tables are included in `schema.sql` for future modules.
-- This is still a simple beginner-friendly module.
-- Inventory modules are not created yet.
+- Use a strong `SECRET_KEY` in `.env` before deployment.
+- Set `SESSION_COOKIE_SECURE=true` when serving the app over HTTPS.

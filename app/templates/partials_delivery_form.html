@@ -1,0 +1,43 @@
+<div class="mb-3">
+    <label class="form-label">Movement Type</label>
+    <select class="form-select" name="movement_type" required>
+        <option value="inbound">Inbound - Buy / Receive Material</option>
+        <option value="outbound">Outbound - Dispatch / Sell Stock</option>
+    </select>
+</div>
+<div class="mb-3">
+    <label class="form-label">Supplier / Customer Name</label>
+    <input class="form-control" name="supplier_name" required>
+</div>
+<div class="mb-3">
+    <label class="form-label">Inventory Item</label>
+    <select class="form-select" name="item_id" required>
+        {% for item in items %}
+        <option value="{{ item.item_id }}">{{ item.item_name }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Quantity</label>
+        <input class="form-control" type="number" step="0.01" min="0.01" name="quantity" required>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Status</label>
+        <select class="form-select" name="status" required>
+            <option value="pending">In Transit</option>
+            <option value="received">Received</option>
+            <option value="delayed">Delayed</option>
+        </select>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Expected Date</label>
+        <input class="form-control" type="date" name="expected_date">
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Received Date</label>
+        <input class="form-control" type="date" name="received_date">
+    </div>
+</div>

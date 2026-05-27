@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}User Management | Yuraisha Bright{% endblock %}
+
+{% block content %}
+<div class="top-bar mb-4">
+    <h1 class="page-title">User Management</h1>
+    <div class="top-bar-actions">
+        <a class="app-btn app-btn-outline py-1 px-3" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+        <div class="user-profile">
+            <div class="user-avatar">{{ session.get("user_name", "A")[0] | upper }}</div>
+            <div class="user-info">
+                <span class="user-name">{{ session.get("user_name", "Admin") }}</span>
+                <span class="user-role">{{ session.get("user_role", "")|title }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Create User</h5>
+                <form method="POST" action="{{ url_for('main.admin_users') }}" class="stack-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="create">
+                    <label class="form-label">Full Name</label>
+                    <input class="form-control mb-3" name="full_name" required>
+                    <label class="form-label">Username</label>
+                    <input class="form-control mb-3" name="username" required>
+                    <label class="form-label">Email</label>
+                    <input class="form-control mb-3" type="email" name="email" required>
+                    <label class="form-label">Role</label>
+                    <select class="form-select mb-3" name="role" required>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <label class="form-label">Temporary Password</label>
+                    <input class="form-control mb-4" type="password" name="password" required>
+                    <button class="app-btn app-btn-primary w-100 border-0" type="submit">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="data-table-wrapper">
+            <div class="table-header-controls">
+                <h5 class="m-0 fw-bold">System Users</h5>
+                <span class="text-muted" style="font-size: 13px;">{{ users|length }} accounts</span>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ user.full_name }}</div>
+                            <div class="text-muted" style="font-size: 12px;">{{ user.username }} / {{ user.email }}</div>
+                        </td>
+                        <td>{{ user.role|title }}</td>
+                        <td>
+                            <span class="status-badge {% if user.is_active %}status-in-stock{% else %}status-out-of-stock{% endif %}">
+                                {{ "Active" if user.is_active else "Inactive" }}
+                            </span>
+                        </td>
+                        <td class="text-muted">{{ user.last_login_at or "Never" }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('main.admin_users') }}" class="inline-admin-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="update">
+                                <input type="hidden" name="user_id" value="{{ user.user_id }}">
+                                <select class="form-select form-select-sm mb-2" name="role">
+                                    <option value="manager" {% if user.role == 'manager' %}selected{% endif %}>Manager</option>
+                                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                </select>
+                                <label class="check-row compact-check mb-2">
+                                    <input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}>
+                                    <span>Active account</span>
+                                </label>
+                                <button class="btn btn-sm btn-light border" type="submit">Save</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('main.admin_users') }}" class="inline-admin-form mt-2">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="reset_password">
+                                <input type="hidden" name="user_id" value="{{ user.user_id }}">
+                                <input class="form-control form-control-sm mb-2" type="password" name="password" placeholder="New password">
+                                <button class="btn btn-sm btn-light border" type="submit">Reset</button>
+                            </form>
+                            {% if user.user_id != session.get("user_id") %}
+                            <form method="POST" action="{{ url_for('main.admin_users') }}" class="inline-admin-form mt-2" onsubmit="return confirm('Delete this user account?');">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="user_id" value="{{ user.user_id }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">No users found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="data-table-wrapper">
+    <div class="table-header-controls">
+        <h5 class="m-0 fw-bold">Recent Security Audit</h5>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in audit_logs %}
+            <tr>
+                <td class="text-muted">{{ log.created_at }}</td>
+                <td>{{ log.username or "System" }}</td>
+                <td>{{ log.action|replace("_", " ")|title }}</td>
+                <td>{{ log.entity_type|replace("_", " ")|title }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
+                <td class="text-muted">{{ log.details }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No audit activity yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

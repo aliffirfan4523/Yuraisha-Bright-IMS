@@ -25,6 +25,7 @@
         <p class="auth-intro">Create access for authorized personnel.</p>
 
         <form method="POST" action="{{ url_for('main.register') }}" class="auth-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-field">
                 <label for="full_name">Full Name</label>
                 <div class="input-shell">
@@ -58,6 +59,9 @@
                         <option value="admin">Admin</option>
                         <option value="manager">Manager</option>
                     </select>
+                    {% if not first_account and session.get("user_role") != "admin" %}
+                    <small class="text-muted">Public registration creates manager accounts. Admin permissions are assigned by an administrator.</small>
+                    {% endif %}
                 </div>
             </div>
 

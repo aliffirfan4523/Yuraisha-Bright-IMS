@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('admin', 'manager') NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_login_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -24,9 +26,13 @@ CREATE TABLE IF NOT EXISTS inventory_items (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_inventory_category ON inventory_items (category);
+CREATE INDEX idx_inventory_stock ON inventory_items (quantity, minimum_stock);
+
 -- 3. Supplier Deliveries
 CREATE TABLE IF NOT EXISTS supplier_deliveries (
     delivery_id INT AUTO_INCREMENT PRIMARY KEY,
+    movement_type ENUM('inbound', 'outbound') NOT NULL DEFAULT 'inbound',
     supplier_name VARCHAR(100) NOT NULL,
     item_id INT NOT NULL,
     quantity DECIMAL(10,2) NOT NULL,
@@ -37,21 +43,35 @@ CREATE TABLE IF NOT EXISTS supplier_deliveries (
     FOREIGN KEY (item_id) REFERENCES inventory_items(item_id)
 );
 
+CREATE INDEX idx_deliveries_status_date ON supplier_deliveries (status, expected_date);
+CREATE INDEX idx_deliveries_item ON supplier_deliveries (item_id);
+
 -- 4. Client Transactions
 CREATE TABLE IF NOT EXISTS client_transactions (
     transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    movement_type ENUM('inbound', 'outbound') NOT NULL DEFAULT 'outbound',
+    item_id INT NULL,
+    quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
+    unit VARCHAR(20) NOT NULL DEFAULT 'Units',
     client_name VARCHAR(100) NOT NULL,
     boxes_sold INT NOT NULL,
     amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     payment_status ENUM('pending', 'completed', 'failed') DEFAULT 'completed',
     transaction_date DATE NOT NULL,
     notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (item_id) REFERENCES inventory_items(item_id) ON DELETE SET NULL
 );
+
+CREATE INDEX idx_transactions_status_date ON client_transactions (payment_status, transaction_date);
+CREATE INDEX idx_transactions_movement_item ON client_transactions (movement_type, item_id);
 
 -- 5. Usage Calculations
 CREATE TABLE IF NOT EXISTS usage_calculations (
     calculation_id INT AUTO_INCREMENT PRIMARY KEY,
+    box_size_kg DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+    oil_ratio DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+    plastic_ratio DECIMAL(10,2) NOT NULL DEFAULT 0.10,
     available_oil DECIMAL(10,2) NOT NULL,
     available_plastic DECIMAL(10,2) NOT NULL,
     boxes_can_produce INT NOT NULL,
@@ -69,8 +89,11 @@ CREATE TABLE IF NOT EXISTS notifications (
     message TEXT NOT NULL,
     type ENUM('low_stock', 'delayed_delivery', 'general') NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_notifications_title_type (title, type)
 );
+
+CREATE INDEX idx_notifications_read_type ON notifications (is_read, type);
 
 -- 7. Reports
 CREATE TABLE IF NOT EXISTS reports (
@@ -80,3 +103,17 @@ CREATE TABLE IF NOT EXISTS reports (
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (generated_by) REFERENCES users(user_id)
 );
+
+-- 8. Audit Logs
+CREATE TABLE IF NOT EXISTS audit_logs (
+    audit_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    action VARCHAR(50) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id INT NULL,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_audit_logs_user_date ON audit_logs (user_id, created_at);

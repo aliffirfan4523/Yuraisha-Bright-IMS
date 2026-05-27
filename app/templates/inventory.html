@@ -16,12 +16,12 @@
             <input type="hidden" name="status" value="{{ current_status }}">
             <button type="submit" class="icon-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></button>
         </form>
-        <button class="icon-button" style="margin-left: 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></button>
+        <a class="icon-button" style="margin-left: 8px;" href="{{ url_for('main.alerts') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></a>
         <div class="user-profile">
             <div class="user-avatar">{{ session.get("user_name", "U")[0] | upper }}</div>
             <div class="user-info">
                 <span class="user-name">{{ session.get("user_name", "Admin User") }}</span>
-                <span class="user-role">Admin</span>
+                <span class="user-role">{{ session.get("user_role", "")|title }}</span>
             </div>
         </div>
     </div>
@@ -33,16 +33,16 @@
             <!-- Keep hidden input to preserve search term when filtering -->
             <input type="hidden" name="q" value="{{ current_search }}">
             <select name="category" class="form-select form-select-sm" style="width: auto; min-width: 140px;" onchange="this.form.submit()">
-                <option value="All Categories" {% if current_category == 'All Categories' or not current_category %}selected{% endif %}>All Categories</option>
-                <option value="Raw Materials" {% if current_category == 'Raw Materials' %}selected{% endif %}>Raw Materials</option>
-                <option value="Components" {% if current_category == 'Components' %}selected{% endif %}>Components</option>
-                <option value="Cooking Oil" {% if current_category == 'Cooking Oil' %}selected{% endif %}>Cooking Oil</option>
+                <option value="" {% if not current_category %}selected{% endif %}>All Categories</option>
+                <option value="plastic" {% if current_category == 'plastic' %}selected{% endif %}>Raw Materials</option>
+                <option value="box" {% if current_category == 'box' %}selected{% endif %}>Boxes</option>
+                <option value="cooking_oil" {% if current_category == 'cooking_oil' %}selected{% endif %}>Cooking Oil</option>
             </select>
             <select name="status" class="form-select form-select-sm" style="width: auto; min-width: 140px;" onchange="this.form.submit()">
-                <option value="All Statuses" {% if current_status == 'All Statuses' or not current_status %}selected{% endif %}>All Statuses</option>
-                <option value="In Stock" {% if current_status == 'In Stock' %}selected{% endif %}>In Stock</option>
-                <option value="Low Stock" {% if current_status == 'Low Stock' %}selected{% endif %}>Low Stock</option>
-                <option value="Out of Stock" {% if current_status == 'Out of Stock' %}selected{% endif %}>Out of Stock</option>
+                <option value="" {% if not current_status %}selected{% endif %}>All Statuses</option>
+                <option value="in_stock" {% if current_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                <option value="low_stock" {% if current_status == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                <option value="out_of_stock" {% if current_status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
             </select>
         </form>
         <button class="app-btn app-btn-primary py-1 px-3" style="min-height: 38px;" data-bs-toggle="modal" data-bs-target="#addModal">+ Add Inventory</button>
@@ -69,11 +69,12 @@
                     <td class="text-muted">SKU-{{ item.item_id }}</td>
                     <td>
                         <form method="POST" action="{{ url_for('main.inventory_quick_update', item_id=item.item_id) }}" class="m-0">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                             <input type="number" step="1" name="quantity" value="{{ item.quantity }}" class="form-control form-control-sm fw-bold" style="width: 85px; padding: 2px 6px; font-size: 14px; background: transparent; border: 1px solid transparent;" onfocus="this.style.borderColor='#cbd5e1'; this.style.background='white';" onblur="this.style.borderColor='transparent'; this.style.background='transparent'; this.form.submit()">
                         </form>
                     </td>
                     <td>
-                        {% if item.quantity > 50 %}
+                        {% if item.quantity > item.minimum_stock %}
                         <span class="status-badge status-in-stock">In Stock</span>
                         {% elif item.quantity > 0 %}
                         <span class="status-badge status-low-stock">Low Stock</span>
@@ -120,6 +121,7 @@
       </div>
       <div class="modal-body">
         <form method="POST" action="{{ url_for('main.inventory_add') }}" id="addForm">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label class="form-label text-muted fw-bold" style="font-size: 13px;">Item Name</label>
             <input type="text" name="item_name" class="form-control" required>
@@ -127,7 +129,7 @@
           <div class="mb-3">
             <label class="form-label text-muted fw-bold" style="font-size: 13px;">Category</label>
             <select name="category" class="form-select" required>
-                <option value="box">Components (Box)</option>
+                <option value="box">Boxes</option>
                 <option value="plastic">Raw Materials (Plastic)</option>
                 <option value="cooking_oil">Cooking Oil</option>
             </select>
@@ -166,6 +168,7 @@
       </div>
       <div class="modal-body">
         <form method="POST" id="editForm">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label class="form-label text-muted fw-bold" style="font-size: 13px;">Item Name</label>
             <input type="text" name="item_name" id="editItemName" class="form-control" required>
@@ -173,7 +176,7 @@
           <div class="mb-3">
             <label class="form-label text-muted fw-bold" style="font-size: 13px;">Category</label>
             <select name="category" id="editCategory" class="form-select" required>
-                <option value="box">Components (Box)</option>
+                <option value="box">Boxes</option>
                 <option value="plastic">Raw Materials (Plastic)</option>
                 <option value="cooking_oil">Cooking Oil</option>
             </select>
@@ -201,7 +204,9 @@
           </div>
         </form>
         <!-- Hidden Delete Form -->
-        <form method="POST" id="deleteForm" style="display: none;"></form>
+        <form method="POST" id="deleteForm" style="display: none;">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        </form>
       </div>
     </div>
   </div>

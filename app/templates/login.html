@@ -25,6 +25,7 @@
         <p class="auth-intro">Access your operational dashboard.</p>
 
         <form method="POST" action="{{ url_for('main.login') }}" class="auth-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-field">
                 <label for="login_id">Email Address</label>
                 <div class="input-shell">

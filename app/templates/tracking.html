@@ -3,19 +3,23 @@
 {% block title %}Delivery Tracking | Yuraisha Bright{% endblock %}
 
 {% block content %}
-<div class="top-bar mb-4" style="margin: -24px -32px 24px -32px; padding: 16px 32px; background: var(--white); border-bottom: 1px solid #b9c3d4; border-radius: 8px 8px 0 0;">
-    <h1 class="page-title">Inventory Management</h1>
+<div class="top-bar mb-4">
+    <h1 class="page-title">Delivery Tracking</h1>
     <div class="top-bar-actions">
-        <div class="search-bar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" placeholder="Search shipments...">
-        </div>
-        <button class="icon-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></button>
-        <button class="icon-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></button>
+        <form method="GET" action="{{ url_for('main.tracking') }}" class="d-flex gap-2 mb-0">
+            <div class="search-bar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" name="q" placeholder="Search deliveries..." value="{{ current_search }}">
+            </div>
+            <input type="hidden" name="status" value="{{ current_status }}">
+            <input type="hidden" name="movement_type" value="{{ current_movement_type }}">
+        </form>
+        <a class="icon-button" href="{{ url_for('main.alerts') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></a>
         <div class="user-profile">
-            <div class="user-avatar" style="width: 32px; height: 32px; font-size: 14px;">AU</div>
+            <div class="user-avatar">{{ session.get("user_name", "U")[0] | upper }}</div>
             <div class="user-info">
-                <span class="user-name" style="font-size: 13px;">Admin User</span>
+                <span class="user-name">{{ session.get("user_name", "User") }}</span>
+                <span class="user-role">{{ session.get("user_role", "")|title }}</span>
             </div>
         </div>
     </div>
@@ -23,125 +27,154 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="fw-bold mb-1" style="font-size: 28px;">Delivery Tracking</h2>
-        <p class="text-muted mb-0">Monitor incoming shipments and supplier performance.</p>
+        <h2 class="fw-bold mb-1" style="font-size: 28px;">Inbound and Outbound Tracking</h2>
+        <p class="text-muted mb-0">Track bought materials coming in and sold oil or stock going out.</p>
     </div>
-    <button class="app-btn app-btn-primary py-1 px-3" style="min-height: 40px;">+ New Tracking</button>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-lg-8">
-        <div class="card shadow-sm h-100" style="border-radius: 12px; background: #e2e8f0; border: 1px solid #cbd5e1; overflow: hidden; position: relative; min-height: 340px;">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3 position-relative z-1">
-                    <h6 class="fw-bold m-0 d-flex align-items-center" style="font-size: 16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-right: 8px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Active Shipments Map</h6>
-                    <div class="d-flex gap-1">
-                        <button class="btn btn-light bg-white border" style="padding: 4px 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg></button>
-                        <button class="btn btn-light bg-white border" style="padding: 4px 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg></button>
-                    </div>
-                </div>
-                
-                <!-- Mock Map visual -->
-                <div class="position-absolute w-100 h-100 top-0 left-0" style="background: url('data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'40\\' height=\\'40\\'%3E%3Cpath d=\\'M0 0h40v40H0z\\' fill=\\'%23cbd5e1\\' fill-opacity=\\'0.2\\'/%3E%3Cpath d=\\'M0 0h1v40H0zm0 0h40v1H0z\\' fill=\\'%2394a3b8\\' fill-opacity=\\'0.1\\'/%3E%3C/svg%3E')"></div>
-                <div class="position-absolute" style="top: 35%; left: 35%; z-index: 10; text-align: center;">
-                    <svg viewBox="0 0 24 24" fill="white" stroke="var(--blue-900)" stroke-width="2" style="width: 24px; height: 24px; margin-bottom: -4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                    <div class="bg-white px-2 py-1 shadow-sm mt-1" style="border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--ink);">In Transit - SHP-882</div>
-                </div>
-                <div class="position-absolute" style="top: 55%; left: 55%; z-index: 10; text-align: center;">
-                    <svg viewBox="0 0 24 24" fill="white" stroke="#ef4444" stroke-width="2" style="width: 24px; height: 24px; margin-bottom: -4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                    <div class="bg-white px-2 py-1 shadow-sm mt-1" style="border-radius: 4px; font-size: 11px; font-weight: 600; color: #b91c1c;">Delayed - SHP-885</div>
-                </div>
-                <div class="position-absolute w-100 text-center" style="top: 45%; color: #94a3b8; font-weight: 500;">Map view visualization</div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-4">
-        <h6 class="fw-bold mb-3" style="font-size: 16px;">Delivery Status</h6>
-        <div class="d-flex flex-column gap-3">
-            <div class="card shadow-sm border-0" style="border-radius: 12px; background: var(--panel);">
-                <div class="card-body p-3 d-flex align-items-center gap-3">
-                    <div class="alert-icon-container" style="background: var(--blue-900); color: white;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                    </div>
-                    <div>
-                        <div class="text-muted fw-bold mb-1" style="font-size: 12px;">In Transit</div>
-                        <h4 class="mb-0 fw-bold" style="font-size: 20px;">12</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="card shadow-sm border-0" style="border-radius: 12px;">
-                <div class="card-body p-3 d-flex align-items-center gap-3">
-                    <div class="alert-icon-container" style="background: #f1f5f9; color: var(--ink); border: 1px solid #cbd5e1;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                    <div>
-                        <div class="text-muted fw-bold mb-1" style="font-size: 12px;">Delivered (Today)</div>
-                        <h4 class="mb-0 fw-bold" style="font-size: 20px;">4</h4>
-                    </div>
-                </div>
-            </div>
-            <div class="card shadow-sm" style="border-radius: 12px; border: 1px solid #fecaca; background: #fff5f5;">
-                <div class="card-body p-3 d-flex align-items-center gap-3">
-                    <div class="alert-icon-container" style="background: #ef4444; color: white;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </div>
-                    <div>
-                        <div class="text-danger fw-bold mb-1" style="font-size: 12px;">Delayed</div>
-                        <h4 class="mb-0 fw-bold text-danger" style="font-size: 20px;">2</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <button class="app-btn app-btn-primary py-1 px-3" data-bs-toggle="modal" data-bs-target="#addDeliveryModal">+ New Tracking</button>
 </div>
 
 <div class="data-table-wrapper">
     <div class="table-header-controls">
-        <h5 class="m-0 fw-bold" style="font-size: 16px;">Active Deliveries</h5>
-        <div class="d-flex gap-2">
-            <button class="app-btn app-btn-outline py-1 px-3" style="min-height: 38px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg> Filter</button>
-            <button class="app-btn app-btn-outline py-1 px-3" style="min-height: 38px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Export</button>
-        </div>
+        <form method="GET" action="{{ url_for('main.tracking') }}" class="d-flex gap-2 mb-0">
+            <input type="hidden" name="q" value="{{ current_search }}">
+            <select name="movement_type" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="" {% if not current_movement_type %}selected{% endif %}>All Movements</option>
+                <option value="inbound" {% if current_movement_type == 'inbound' %}selected{% endif %}>Inbound</option>
+                <option value="outbound" {% if current_movement_type == 'outbound' %}selected{% endif %}>Outbound</option>
+            </select>
+            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="" {% if not current_status %}selected{% endif %}>All Statuses</option>
+                <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>In Transit</option>
+                <option value="received" {% if current_status == 'received' %}selected{% endif %}>Received</option>
+                <option value="delayed" {% if current_status == 'delayed' %}selected{% endif %}>Delayed</option>
+            </select>
+        </form>
+        <span class="text-muted" style="font-size: 13px;">Showing {{ deliveries|length }} records</span>
     </div>
     <table class="data-table">
         <thead>
             <tr>
                 <th>Delivery ID</th>
-                <th>Supplier Name</th>
-                <th>Item / PO Ref</th>
-                <th>Expected Date</th>
+                <th>Type</th>
+                <th>Supplier / Customer</th>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Expected</th>
+                <th>Received</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% if deliveries %}
-                {% for d in deliveries %}
-                <tr>
-                    <td class="text-muted">TRK-99{{ d.delivery_id }}</td>
-                    <td class="fw-bold">{{ d.supplier_name }}</td>
-                    <td>
-                        <div style="font-size: 13px; font-weight: 500;">PO-2023-A{{ d.delivery_id }}</div>
-                        <div style="font-size: 11px; color: var(--muted);">{{ d.item_name }}</div>
-                    </td>
-                    <td class="{% if d.status == 'delayed' %}text-danger{% else %}text-muted{% endif %}">{{ d.expected_date }}</td>
-                    <td>
-                        {% if d.status == 'pending' %}
-                        <span class="status-badge status-in-transit">In Transit</span>
-                        {% elif d.status == 'received' %}
-                        <span class="status-badge status-in-stock">Delivered</span>
-                        {% else %}
-                        <span class="status-badge status-delayed">Delayed</span>
-                        {% endif %}
-                    </td>
-                    <td><button class="icon-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg></button></td>
-                </tr>
-                {% endfor %}
+            {% for d in deliveries %}
+            <tr>
+                <td class="text-muted">TRK-{{ d.delivery_id }}</td>
+                <td>
+                    {% if d.movement_type == 'inbound' %}
+                    <span class="status-badge status-in-stock">Inbound</span>
+                    {% else %}
+                    <span class="status-badge status-low-stock">Outbound</span>
+                    {% endif %}
+                </td>
+                <td class="fw-bold">{{ d.supplier_name }}</td>
+                <td>{{ d.item_name }}</td>
+                <td>{{ d.quantity }}</td>
+                <td class="{% if d.status == 'delayed' %}text-danger{% else %}text-muted{% endif %}">{{ d.expected_date or "-" }}</td>
+                <td class="text-muted">{{ d.received_date or "-" }}</td>
+                <td>
+                    {% if d.status == 'pending' %}
+                    <span class="status-badge status-in-transit">In Transit</span>
+                    {% elif d.status == 'received' %}
+                    <span class="status-badge status-in-stock">Received</span>
+                    {% else %}
+                    <span class="status-badge status-delayed">Delayed</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-light border"
+                            data-bs-toggle="modal" data-bs-target="#editDeliveryModal"
+                            data-id="{{ d.delivery_id }}"
+                            data-movement="{{ d.movement_type }}"
+                            data-supplier="{{ d.supplier_name }}"
+                            data-item="{{ d.item_id }}"
+                            data-quantity="{{ d.quantity }}"
+                            data-expected="{{ d.expected_date or '' }}"
+                            data-received="{{ d.received_date or '' }}"
+                            data-status="{{ d.status }}">Edit</button>
+                </td>
+            </tr>
             {% else %}
-                <tr><td colspan="6" class="text-center py-4 text-muted">No pending deliveries found.</td></tr>
-            {% endif %}
+            <tr><td colspan="9" class="text-center text-muted py-4">No delivery records found.</td></tr>
+            {% endfor %}
         </tbody>
     </table>
 </div>
+
+<div class="modal fade" id="addDeliveryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Add Delivery</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.tracking_add') }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    {% include "partials_delivery_form.html" %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="app-btn app-btn-primary border-0">Save Delivery</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editDeliveryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Edit Delivery</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editDeliveryForm">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    {% include "partials_delivery_form.html" %}
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-outline-danger" onclick="document.getElementById('deleteDeliveryForm').submit()">Delete</button>
+                    <div>
+                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="app-btn app-btn-primary border-0">Save Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<form method="POST" id="deleteDeliveryForm" style="display:none;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('editDeliveryModal');
+    modal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const id = button.getAttribute('data-id');
+        document.getElementById('editDeliveryForm').action = '/tracking/edit/' + id;
+        document.getElementById('deleteDeliveryForm').action = '/tracking/delete/' + id;
+        modal.querySelector('[name="supplier_name"]').value = button.getAttribute('data-supplier');
+        modal.querySelector('[name="movement_type"]').value = button.getAttribute('data-movement');
+        modal.querySelector('[name="item_id"]').value = button.getAttribute('data-item');
+        modal.querySelector('[name="quantity"]').value = button.getAttribute('data-quantity');
+        modal.querySelector('[name="expected_date"]').value = button.getAttribute('data-expected');
+        modal.querySelector('[name="received_date"]').value = button.getAttribute('data-received');
+        modal.querySelector('[name="status"]').value = button.getAttribute('data-status');
+    });
+});
+</script>
 {% endblock %}
