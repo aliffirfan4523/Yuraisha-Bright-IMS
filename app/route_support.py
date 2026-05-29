@@ -12,7 +12,43 @@ from app.db import get_db_connection
 
 
 ROLES = {"admin", "manager"}
-ITEM_CATEGORIES = {"box", "plastic", "cooking_oil"}
+PACKAGING_CATEGORIES = {
+    "box_1kg",
+    "box_3kg",
+    "box_5kg",
+    "box_10kg",
+    "plastic_1kg",
+    "plastic_10kg",
+    "bottle_3kg",
+    "bottle_5kg",
+}
+PACKAGING_INPUT_ORDER = [
+    "plastic_1kg",
+    "plastic_10kg",
+    "bottle_3kg",
+    "bottle_5kg",
+    "box_1kg",
+    "box_3kg",
+    "box_5kg",
+    "box_10kg",
+]
+ITEM_CATEGORIES = PACKAGING_CATEGORIES | {"cooking_oil", "finished_goods", "defect"}
+RAW_MATERIAL_CATEGORIES = PACKAGING_CATEGORIES | {"cooking_oil"}
+SELLABLE_CATEGORIES = {"finished_goods"}
+INVENTORY_CATEGORY_LABELS = {
+    "box_1kg": "1kg Boxes",
+    "box_3kg": "3kg Boxes",
+    "box_5kg": "5kg Boxes",
+    "box_10kg": "10kg Boxes",
+    "plastic_1kg": "1kg Plastic Packs",
+    "plastic_10kg": "10kg Plastic Packs",
+    "bottle_3kg": "3kg Bottles",
+    "bottle_5kg": "5kg Bottles",
+    "cooking_oil": "Cooking Oil",
+    "finished_goods": "Finished Goods",
+    "defect": "Defect Stock",
+}
+DEFAULT_INVENTORY_CATEGORY_ORDER = PACKAGING_INPUT_ORDER + ["cooking_oil", "finished_goods", "defect"]
 DELIVERY_STATUSES = {"pending", "received", "delayed"}
 PAYMENT_STATUSES = {"pending", "completed", "failed"}
 REPORT_TYPES = {"inventory", "stock_summary", "supplier", "transaction"}
@@ -20,11 +56,45 @@ MOVEMENT_TYPES = {"inbound", "outbound"}
 LOGIN_LOCK_LIMIT = 5
 LOGIN_LOCK_MINUTES = 15
 BOX_RATIOS = {
-    "1": {"label": "1kg Box", "oil_ratio": 1.0, "plastic_ratio": 0.10},
-    "3": {"label": "3kg Box", "oil_ratio": 3.0, "plastic_ratio": 0.30},
-    "5": {"label": "5kg Box", "oil_ratio": 5.0, "plastic_ratio": 0.50},
-    "10": {"label": "10kg Box", "oil_ratio": 10.0, "plastic_ratio": 1.00},
+    "1": {
+        "label": "1kg Box",
+        "box_size_kg": 1,
+        "units_per_box": 20,
+        "package_category": "plastic_1kg",
+        "package_label": "1kg Plastic Packs",
+        "box_category": "box_1kg",
+        "box_label": "1kg Boxes",
+    },
+    "3": {
+        "label": "3kg Box",
+        "box_size_kg": 3,
+        "units_per_box": 4,
+        "package_category": "bottle_3kg",
+        "package_label": "3kg Bottles",
+        "box_category": "box_3kg",
+        "box_label": "3kg Boxes",
+    },
+    "5": {
+        "label": "5kg Box",
+        "box_size_kg": 5,
+        "units_per_box": 2,
+        "package_category": "bottle_5kg",
+        "package_label": "5kg Bottles",
+        "box_category": "box_5kg",
+        "box_label": "5kg Boxes",
+    },
+    "10": {
+        "label": "10kg Box",
+        "box_size_kg": 10,
+        "units_per_box": 1,
+        "package_category": "plastic_10kg",
+        "package_label": "10kg Plastic Packs",
+        "box_category": "box_10kg",
+        "box_label": "10kg Boxes",
+    },
 }
+
+
 @contextmanager
 def db_cursor(dictionary=True):
     connection = None
@@ -87,14 +157,39 @@ def protect_post_requests():
 
 def inject_global_values():
     unread_alerts_count = 0
+    latest_unread_alert = None
     if session.get("user_id"):
         try:
             with db_cursor() as (_, cursor):
                 cursor.execute("SELECT COUNT(*) AS count FROM notifications WHERE is_read = FALSE")
                 unread_alerts_count = cursor.fetchone()["count"]
+                cursor.execute(
+                    """
+                    SELECT notification_id, title, message, type, created_at
+                    FROM notifications
+                    WHERE is_read = FALSE
+                    ORDER BY created_at DESC, notification_id DESC
+                    LIMIT 1
+                    """
+                )
+                alert = cursor.fetchone()
+                if alert:
+                    created_at = alert["created_at"]
+                    latest_unread_alert = {
+                        "id": alert["notification_id"],
+                        "title": alert["title"],
+                        "message": alert["message"],
+                        "type": alert["type"],
+                        "created_at": created_at.strftime("%b %d, %H:%M") if created_at else "",
+                    }
         except Error:
             unread_alerts_count = 0
-    return {"csrf_token": csrf_token, "unread_alerts_count": unread_alerts_count}
+            latest_unread_alert = None
+    return {
+        "csrf_token": csrf_token,
+        "unread_alerts_count": unread_alerts_count,
+        "latest_unread_alert": latest_unread_alert,
+    }
 
 
 def current_user_id():
@@ -171,6 +266,83 @@ def notification_exists(cursor, title, notification_type):
     return cursor.fetchone() is not None
 
 
+def category_key_from_label(label):
+    key = re.sub(r"[^a-z0-9]+", "_", (label or "").strip().lower())
+    key = re.sub(r"_+", "_", key).strip("_")
+    if not key:
+        raise ValueError("Category name is required.")
+    if len(key) > 50:
+        raise ValueError("Category name is too long.")
+    return key
+
+
+def category_label_from_key(category_key):
+    return INVENTORY_CATEGORY_LABELS.get(category_key, category_key.replace("_", " ").title())
+
+
+def ensure_inventory_category_support(cursor):
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS inventory_categories (
+            category_key VARCHAR(50) PRIMARY KEY,
+            category_label VARCHAR(100) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cursor.execute("SHOW COLUMNS FROM inventory_items LIKE 'category'")
+    category_column = cursor.fetchone()
+    if category_column and not str(category_column.get("Type", "")).lower().startswith("varchar"):
+        cursor.execute("ALTER TABLE inventory_items MODIFY category VARCHAR(50) NOT NULL")
+
+    for category_key in DEFAULT_INVENTORY_CATEGORY_ORDER:
+        cursor.execute(
+            """
+            INSERT INTO inventory_categories (category_key, category_label)
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE category_label = VALUES(category_label)
+            """,
+            (category_key, category_label_from_key(category_key)),
+        )
+
+    cursor.execute(
+        """
+        INSERT INTO inventory_categories (category_key, category_label)
+        SELECT DISTINCT category, REPLACE(category, '_', ' ')
+        FROM inventory_items
+        WHERE category IS NOT NULL
+        ON DUPLICATE KEY UPDATE category_key = category_key
+        """
+    )
+
+
+def get_inventory_categories(cursor):
+    ensure_inventory_category_support(cursor)
+    cursor.execute(
+        """
+        SELECT category_key, category_label
+        FROM inventory_categories
+        ORDER BY
+            CASE WHEN FIELD(category_key, 'plastic_1kg', 'plastic_10kg', 'bottle_3kg', 'bottle_5kg',
+                'box_1kg', 'box_3kg', 'box_5kg', 'box_10kg',
+                'cooking_oil', 'finished_goods', 'defect') = 0 THEN 1 ELSE 0 END,
+            FIELD(category_key, 'plastic_1kg', 'plastic_10kg', 'bottle_3kg', 'bottle_5kg',
+                'box_1kg', 'box_3kg', 'box_5kg', 'box_10kg',
+                'cooking_oil', 'finished_goods', 'defect'),
+            category_label
+        """
+    )
+    return cursor.fetchall()
+
+
+def inventory_category_exists(cursor, category_key):
+    cursor.execute(
+        "SELECT category_key FROM inventory_categories WHERE category_key = %s",
+        (category_key,),
+    )
+    return cursor.fetchone() is not None
+
+
 def inventory_delta(movement_type, quantity):
     return quantity if movement_type == "inbound" else -quantity
 
@@ -184,6 +356,119 @@ def apply_inventory_delta(cursor, item_id, delta):
     if new_quantity < 0:
         raise ValueError("Outbound quantity cannot exceed available stock.")
     cursor.execute("UPDATE inventory_items SET quantity = %s WHERE item_id = %s", (new_quantity, item_id))
+
+
+def apply_inventory_for_tracking_status(cursor, delivery, new_status):
+    old_status = delivery["status"]
+    if old_status == new_status:
+        return False
+
+    delta = inventory_delta(delivery["movement_type"], float(delivery["quantity"]))
+    if old_status == "received":
+        apply_inventory_delta(cursor, delivery["item_id"], -delta)
+        return True
+    if new_status == "received":
+        apply_inventory_delta(cursor, delivery["item_id"], delta)
+        return True
+    return False
+
+
+def get_inventory_item(cursor, item_id):
+    cursor.execute("SELECT * FROM inventory_items WHERE item_id = %s", (item_id,))
+    item = cursor.fetchone()
+    if item is None:
+        raise ValueError("Selected inventory item does not exist.")
+    return item
+
+
+def consume_category_stock(cursor, category, required_quantity):
+    remaining = float(required_quantity)
+    cursor.execute(
+        """
+        SELECT item_id, quantity
+        FROM inventory_items
+        WHERE category = %s AND quantity > 0
+        ORDER BY updated_at ASC, item_id ASC
+        """,
+        (category,),
+    )
+    items = cursor.fetchall()
+    available = sum(float(item["quantity"]) for item in items)
+    if available < remaining:
+        raise ValueError(f"Not enough {category.replace('_', ' ')} stock for production.")
+
+    for item in items:
+        if remaining <= 0:
+            break
+        take = min(float(item["quantity"]), remaining)
+        cursor.execute(
+            "UPDATE inventory_items SET quantity = quantity - %s WHERE item_id = %s",
+            (take, item["item_id"]),
+        )
+        remaining -= take
+
+
+def add_or_increment_inventory_item(cursor, item_name, category, quantity, unit, minimum_stock=0):
+    cursor.execute(
+        """
+        SELECT item_id
+        FROM inventory_items
+        WHERE item_name = %s AND category = %s AND unit = %s
+        LIMIT 1
+        """,
+        (item_name, category, unit),
+    )
+    existing = cursor.fetchone()
+    if existing:
+        cursor.execute(
+            "UPDATE inventory_items SET quantity = quantity + %s WHERE item_id = %s",
+            (quantity, existing["item_id"]),
+        )
+        return existing["item_id"]
+
+    cursor.execute(
+        """
+        INSERT INTO inventory_items (item_name, category, quantity, unit, minimum_stock)
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        (item_name, category, quantity, unit, minimum_stock),
+    )
+    return cursor.lastrowid
+
+
+def sync_delivery_from_transaction(cursor, transaction_id, movement_type, client_name, item_id, quantity, transaction_date):
+    cursor.execute(
+        "SELECT delivery_id, status, expected_date, received_date FROM supplier_deliveries WHERE transaction_id = %s",
+        (transaction_id,),
+    )
+    delivery = cursor.fetchone()
+    if delivery:
+        cursor.execute(
+            """
+            UPDATE supplier_deliveries
+            SET movement_type = %s,
+                supplier_name = %s,
+                item_id = %s,
+                quantity = %s
+            WHERE transaction_id = %s
+            """,
+            (movement_type, client_name, item_id, quantity, transaction_id),
+        )
+        return delivery["delivery_id"]
+
+    cursor.execute(
+        """
+        INSERT INTO supplier_deliveries
+        (transaction_id, movement_type, supplier_name, item_id, quantity, expected_date, received_date, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (transaction_id, movement_type, client_name, item_id, quantity, transaction_date, None, "pending"),
+    )
+    return cursor.lastrowid
+
+
+def delete_delivery_for_transaction(cursor, transaction_id):
+    cursor.execute("DELETE FROM supplier_deliveries WHERE transaction_id = %s", (transaction_id,))
 
 
 def refresh_system_alerts(cursor, connection):

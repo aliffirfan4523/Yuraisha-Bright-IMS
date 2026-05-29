@@ -145,4 +145,73 @@ def register_routes(main):
         session.clear()
         flash("You have been logged out.", "info")
         return redirect(url_for("main.login"))
+
+
+    @main.route("/profile", methods=["GET", "POST"])
+    @login_required
+    def profile():
+        user = None
+        try:
+            with db_cursor() as (connection, cursor):
+                cursor.execute(
+                    """
+                    SELECT user_id, full_name, username, email, password_hash, role, last_login_at, created_at
+                    FROM users
+                    WHERE user_id = %s
+                    """,
+                    (current_user_id(),),
+                )
+                user = cursor.fetchone()
+                if user is None:
+                    session.clear()
+                    flash("Please log in again.", "warning")
+                    return redirect(url_for("main.login"))
+
+                if request.method == "POST":
+                    action = request.form.get("action", "")
+                    if action == "update_name":
+                        full_name = request.form.get("full_name", "").strip()
+                        if not full_name:
+                            raise ValueError("Full name is required.")
+                        if len(full_name) > 100:
+                            raise ValueError("Full name is too long.")
+                        cursor.execute(
+                            "UPDATE users SET full_name = %s WHERE user_id = %s",
+                            (full_name, current_user_id()),
+                        )
+                        connection.commit()
+                        session["user_name"] = full_name
+                        log_audit("update_profile", "user", current_user_id(), "Updated profile name.")
+                        flash("Profile name updated.", "success")
+                        return redirect(url_for("main.profile"))
+
+                    if action == "change_password":
+                        current_password = request.form.get("current_password", "")
+                        new_password = request.form.get("new_password", "")
+                        confirm_password = request.form.get("confirm_password", "")
+                        if not check_password_hash(user["password_hash"], current_password):
+                            raise ValueError("Current password is incorrect.")
+                        password_error = validate_password(new_password)
+                        if password_error:
+                            raise ValueError(password_error)
+                        if new_password != confirm_password:
+                            raise ValueError("New passwords do not match.")
+                        cursor.execute(
+                            "UPDATE users SET password_hash = %s WHERE user_id = %s",
+                            (generate_password_hash(new_password), current_user_id()),
+                        )
+                        connection.commit()
+                        log_audit("change_password", "user", current_user_id(), "User changed own password.")
+                        flash("Password changed successfully.", "success")
+                        return redirect(url_for("main.profile"))
+
+                    raise ValueError("Unknown profile action.")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("main.profile"))
+        except Error:
+            flash("Could not update profile. Please check your MySQL setup.", "danger")
+            return redirect(url_for("main.dashboard"))
+
+        return render_template("profile.html", user=user)
     

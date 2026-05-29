@@ -24,7 +24,7 @@ def register_routes(main):
         search = request.args.get("q", "").strip()
         try:
             with db_cursor() as (_, cursor):
-                cursor.execute("SELECT item_id, item_name, unit FROM inventory_items ORDER BY item_name")
+                cursor.execute("SELECT item_id, item_name, category, quantity, unit FROM inventory_items ORDER BY category, item_name")
                 items = cursor.fetchall()
                 cursor.execute(
                     """
@@ -108,7 +108,14 @@ def register_routes(main):
             if not client_name or payment_status not in PAYMENT_STATUSES or movement_type not in MOVEMENT_TYPES:
                 raise ValueError("Please provide valid transaction details.")
             with db_cursor() as (connection, cursor):
+                item = get_inventory_item(cursor, item_id)
+                if movement_type == "inbound" and item["category"] not in RAW_MATERIAL_CATEGORIES:
+                    raise ValueError("Inbound transactions can only buy raw materials.")
+                if movement_type == "outbound" and item["category"] not in SELLABLE_CATEGORIES:
+                    raise ValueError("Outbound transactions can only sell finished oil products.")
+                previous_delivery_status = "pending"
                 if transaction_id:
+                    previous_delivery_status = "received"
                     cursor.execute(
                         "SELECT movement_type, item_id, quantity FROM client_transactions WHERE transaction_id = %s",
                         (transaction_id,),
@@ -116,11 +123,19 @@ def register_routes(main):
                     old = cursor.fetchone()
                     if old is None:
                         raise ValueError("Transaction record was not found.")
-                    apply_inventory_delta(
-                        cursor,
-                        old["item_id"],
-                        -inventory_delta(old["movement_type"], float(old["quantity"])),
+                    cursor.execute(
+                        "SELECT status FROM supplier_deliveries WHERE transaction_id = %s",
+                        (transaction_id,),
                     )
+                    linked_delivery = cursor.fetchone()
+                    if linked_delivery:
+                        previous_delivery_status = linked_delivery["status"]
+                    if previous_delivery_status == "received":
+                        apply_inventory_delta(
+                            cursor,
+                            old["item_id"],
+                            -inventory_delta(old["movement_type"], float(old["quantity"])),
+                        )
                     cursor.execute(
                         """
                         UPDATE client_transactions
@@ -170,7 +185,17 @@ def register_routes(main):
                     entity_id = cursor.lastrowid
                     action = "create"
                     message = "Transaction added."
-                apply_inventory_delta(cursor, item_id, inventory_delta(movement_type, quantity))
+                sync_delivery_from_transaction(
+                    cursor,
+                    entity_id,
+                    movement_type,
+                    client_name,
+                    item_id,
+                    quantity,
+                    transaction_date,
+                )
+                if previous_delivery_status == "received":
+                    apply_inventory_delta(cursor, item_id, inventory_delta(movement_type, quantity))
                 connection.commit()
             log_audit(action, "client_transaction", entity_id, f"{message} {movement_type}: {client_name}.")
             flash(message, "success")
@@ -191,12 +216,23 @@ def register_routes(main):
                     (transaction_id,),
                 )
                 old = cursor.fetchone()
-                if old and old["item_id"] is not None and old["quantity"] is not None:
+                cursor.execute(
+                    "SELECT status FROM supplier_deliveries WHERE transaction_id = %s",
+                    (transaction_id,),
+                )
+                linked_delivery = cursor.fetchone()
+                if (
+                    old
+                    and old["item_id"] is not None
+                    and old["quantity"] is not None
+                    and (linked_delivery is None or linked_delivery["status"] == "received")
+                ):
                     apply_inventory_delta(
                         cursor,
                         old["item_id"],
                         -inventory_delta(old["movement_type"], float(old["quantity"])),
                     )
+                delete_delivery_for_transaction(cursor, transaction_id)
                 cursor.execute("DELETE FROM client_transactions WHERE transaction_id = %s", (transaction_id,))
                 connection.commit()
             log_audit("delete", "client_transaction", transaction_id, "Deleted client transaction.")

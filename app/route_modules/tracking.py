@@ -22,7 +22,7 @@ def register_routes(main):
         try:
             with db_cursor() as (connection, cursor):
                 refresh_system_alerts(cursor, connection)
-                cursor.execute("SELECT item_id, item_name FROM inventory_items ORDER BY item_name")
+                cursor.execute("SELECT item_id, item_name, category, quantity FROM inventory_items ORDER BY category, item_name")
                 items = cursor.fetchall()
                 query = """
                     SELECT d.*, i.item_name
@@ -58,36 +58,7 @@ def register_routes(main):
     @main.route("/tracking/add", methods=["POST"])
     @role_required("admin", "manager")
     def tracking_add():
-        try:
-            supplier_name = request.form.get("supplier_name", "").strip()
-            movement_type = request.form.get("movement_type", "inbound")
-            item_id = int_form("item_id", "Item", 1)
-            quantity = decimal_form("quantity", "Quantity", 0.01)
-            expected_date = date_form("expected_date", "Expected date")
-            received_date = date_form("received_date", "Received date")
-            status = request.form.get("status", "pending")
-            if not supplier_name or status not in DELIVERY_STATUSES or movement_type not in MOVEMENT_TYPES:
-                raise ValueError("Please provide valid delivery details.")
-            with db_cursor() as (connection, cursor):
-                cursor.execute(
-                    """
-                    INSERT INTO supplier_deliveries
-                    (movement_type, supplier_name, item_id, quantity, expected_date, received_date, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (movement_type, supplier_name, item_id, quantity, expected_date, received_date, status),
-                )
-                delivery_id = cursor.lastrowid
-                if status == "received":
-                    apply_inventory_delta(cursor, item_id, inventory_delta(movement_type, quantity))
-                connection.commit()
-                refresh_system_alerts(cursor, connection)
-            log_audit("create", "supplier_delivery", delivery_id, f"Added {movement_type} delivery for {supplier_name}.")
-            flash("Delivery record added.", "success")
-        except ValueError as exc:
-            flash(str(exc), "danger")
-        except Error:
-            flash("Could not add delivery record.", "danger")
+        flash("Manual tracking creation is disabled. Use transactions as the source of record.", "warning")
         return redirect(url_for("main.tracking"))
     
     
@@ -95,45 +66,79 @@ def register_routes(main):
     @role_required("admin", "manager")
     def tracking_edit(delivery_id):
         try:
-            supplier_name = request.form.get("supplier_name", "").strip()
-            movement_type = request.form.get("movement_type", "inbound")
-            item_id = int_form("item_id", "Item", 1)
-            quantity = decimal_form("quantity", "Quantity", 0.01)
             expected_date = date_form("expected_date", "Expected date")
             received_date = date_form("received_date", "Received date")
             status = request.form.get("status", "pending")
-            if not supplier_name or status not in DELIVERY_STATUSES or movement_type not in MOVEMENT_TYPES:
+            if status not in DELIVERY_STATUSES:
                 raise ValueError("Please provide valid delivery details.")
             with db_cursor() as (connection, cursor):
+                inventory_was_updated = False
                 cursor.execute(
-                    "SELECT movement_type, item_id, quantity, status FROM supplier_deliveries WHERE delivery_id = %s",
+                    "SELECT movement_type, supplier_name, item_id, quantity, status, transaction_id FROM supplier_deliveries WHERE delivery_id = %s",
                     (delivery_id,),
                 )
                 old = cursor.fetchone()
                 if old is None:
                     raise ValueError("Delivery record was not found.")
-                if old["status"] == "received":
-                    if old["item_id"] is not None and old["quantity"] is not None:
+                if old["transaction_id"]:
+                    inventory_was_updated = apply_inventory_for_tracking_status(cursor, old, status)
+                    if status == "received" and received_date is None:
+                        received_date = date.today()
+                    cursor.execute(
+                        """
+                        UPDATE supplier_deliveries
+                        SET expected_date = %s,
+                            received_date = %s,
+                            status = %s
+                        WHERE delivery_id = %s
+                        """,
+                        (expected_date, received_date, status, delivery_id),
+                    )
+                else:
+                    supplier_name = request.form.get("supplier_name", "").strip()
+                    movement_type = request.form.get("movement_type", "inbound")
+                    item_id = int_form("item_id", "Item", 1)
+                    quantity = decimal_form("quantity", "Quantity", 0.01)
+                    if not supplier_name or movement_type not in MOVEMENT_TYPES:
+                        raise ValueError("Please provide valid delivery details.")
+                    item = get_inventory_item(cursor, item_id)
+                    if movement_type == "inbound" and item["category"] not in RAW_MATERIAL_CATEGORIES:
+                        raise ValueError("Inbound tracking can only receive raw materials.")
+                    if movement_type == "outbound" and item["category"] not in SELLABLE_CATEGORIES:
+                        raise ValueError("Outbound tracking can only dispatch finished oil products.")
+                    delivery_changed = (
+                        old["movement_type"] != movement_type
+                        or old["item_id"] != item_id
+                        or float(old["quantity"]) != float(quantity)
+                    )
+                    if old["status"] == "received" and (status != "received" or delivery_changed):
                         apply_inventory_delta(
                             cursor,
                             old["item_id"],
                             -inventory_delta(old["movement_type"], float(old["quantity"])),
                         )
-                cursor.execute(
-                    """
-                    UPDATE supplier_deliveries
-                    SET movement_type = %s, supplier_name = %s, item_id = %s, quantity = %s, expected_date = %s,
-                        received_date = %s, status = %s
-                    WHERE delivery_id = %s
-                    """,
-                    (movement_type, supplier_name, item_id, quantity, expected_date, received_date, status, delivery_id),
-                )
-                if status == "received":
-                    apply_inventory_delta(cursor, item_id, inventory_delta(movement_type, quantity))
+                        inventory_was_updated = True
+                    if status == "received" and received_date is None:
+                        received_date = date.today()
+                    cursor.execute(
+                        """
+                        UPDATE supplier_deliveries
+                        SET movement_type = %s, supplier_name = %s, item_id = %s, quantity = %s, expected_date = %s,
+                            received_date = %s, status = %s
+                        WHERE delivery_id = %s
+                        """,
+                        (movement_type, supplier_name, item_id, quantity, expected_date, received_date, status, delivery_id),
+                    )
+                    if status == "received" and (old["status"] != "received" or delivery_changed):
+                        apply_inventory_delta(cursor, item_id, inventory_delta(movement_type, quantity))
+                        inventory_was_updated = True
                 connection.commit()
                 refresh_system_alerts(cursor, connection)
             log_audit("update", "supplier_delivery", delivery_id, "Updated delivery record.")
-            flash("Delivery record updated.", "success")
+            if inventory_was_updated:
+                flash("Delivery record updated and inventory quantity adjusted.", "success")
+            else:
+                flash("Delivery record updated.", "success")
         except ValueError as exc:
             flash(str(exc), "danger")
         except Error:
@@ -147,10 +152,12 @@ def register_routes(main):
         try:
             with db_cursor() as (connection, cursor):
                 cursor.execute(
-                    "SELECT movement_type, item_id, quantity, status FROM supplier_deliveries WHERE delivery_id = %s",
+                    "SELECT movement_type, item_id, quantity, status, transaction_id FROM supplier_deliveries WHERE delivery_id = %s",
                     (delivery_id,),
                 )
                 old = cursor.fetchone()
+                if old and old["transaction_id"]:
+                    raise ValueError("This tracking record is synced from a transaction. Delete it from Transactions.")
                 if old and old["status"] == "received":
                     apply_inventory_delta(
                         cursor,
@@ -161,6 +168,8 @@ def register_routes(main):
                 connection.commit()
             log_audit("delete", "supplier_delivery", delivery_id, "Deleted delivery record.")
             flash("Delivery record deleted.", "success")
+        except ValueError as exc:
+            flash(str(exc), "danger")
         except Error:
             flash("Could not delete delivery record.", "danger")
         return redirect(url_for("main.tracking"))

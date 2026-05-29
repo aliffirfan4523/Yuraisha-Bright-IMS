@@ -14,20 +14,20 @@
             <input type="hidden" name="status" value="{{ current_status }}">
             <input type="hidden" name="movement_type" value="{{ current_movement_type }}">
         </form>
-        <div class="user-profile">
+        <a class="user-profile" href="{{ url_for('main.profile') }}" aria-label="Open profile">
             <div class="user-avatar">{{ session.get("user_name", "U")[0] | upper }}</div>
             <div class="user-info">
                 <span class="user-name">{{ session.get("user_name", "User") }}</span>
                 <span class="user-role">{{ session.get("user_role", "")|title }}</span>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="fw-bold mb-1" style="font-size: 28px;">Inbound and Outbound Transactions</h2>
-        <p class="text-muted mb-0">Record bought materials and sold oil while automatically updating inventory.</p>
+        <p class="text-muted mb-0">Record bought materials and sold oil while creating synced tracking records for inventory movement.</p>
     </div>
     <button class="app-btn app-btn-primary py-1 px-3" data-bs-toggle="modal" data-bs-target="#addTransactionModal">+ New Transaction</button>
 </div>
@@ -179,12 +179,102 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    function updateTransactionQuantityLimit(form) {
+        const movement = form.querySelector('[name="movement_type"]').value;
+        const itemSelect = form.querySelector('[name="item_id"]');
+        const quantityInput = form.querySelector('[name="quantity"]');
+        const note = form.querySelector('[data-quantity-limit-note]');
+        const selected = itemSelect.selectedOptions[0];
+
+        if (!quantityInput || !selected) {
+            return;
+        }
+
+        const availableQuantity = Number(selected.getAttribute('data-quantity') || 0);
+        const availableUnit = selected.getAttribute('data-unit') || '';
+        const originalMovement = form.getAttribute('data-original-movement');
+        const originalItemId = form.getAttribute('data-original-item-id');
+        const originalQuantity = Number(form.getAttribute('data-original-quantity') || 0);
+
+        if (movement === 'outbound') {
+            let maxQuantity = availableQuantity;
+
+            if (form.id === 'editTransactionForm' && originalMovement === 'outbound' && originalItemId === selected.value) {
+                maxQuantity += originalQuantity;
+            }
+
+            quantityInput.max = String(maxQuantity);
+            if (quantityInput.value && Number(quantityInput.value) > maxQuantity) {
+                quantityInput.value = maxQuantity > 0 ? String(maxQuantity) : '';
+            }
+            if (note) {
+                note.textContent = `Available stock: ${maxQuantity} ${availableUnit}`.trim();
+            }
+            return;
+        }
+
+        quantityInput.removeAttribute('max');
+        if (note) {
+            note.textContent = 'Inbound purchases are not limited by current stock.';
+        }
+    }
+
+    function refreshTransactionItemOptions(form) {
+        const movement = form.querySelector('[name="movement_type"]').value;
+        const itemSelect = form.querySelector('[name="item_id"]');
+        let firstVisible = null;
+        itemSelect.querySelectorAll('option').forEach((option) => {
+            const category = option.getAttribute('data-category');
+            const visible = movement === 'inbound'
+                ? [
+                    'box_1kg', 'box_3kg', 'box_5kg', 'box_10kg',
+                    'plastic_1kg', 'plastic_10kg',
+                    'bottle_3kg', 'bottle_5kg',
+                    'cooking_oil'
+                ].includes(category)
+                : category === 'finished_goods';
+            option.hidden = !visible;
+            option.disabled = !visible;
+            if (visible && !firstVisible) {
+                firstVisible = option;
+            }
+        });
+        if (!itemSelect.selectedOptions.length || itemSelect.selectedOptions[0].disabled) {
+            itemSelect.value = firstVisible ? firstVisible.value : '';
+        }
+        const selected = itemSelect.selectedOptions[0];
+        const unitInput = form.querySelector('[name="unit"]');
+        if (selected && selected.getAttribute('data-unit')) {
+            unitInput.value = selected.getAttribute('data-unit');
+        } else {
+            unitInput.value = '';
+        }
+        updateTransactionQuantityLimit(form);
+    }
+
+    document.querySelectorAll('#addTransactionModal form, #editTransactionModal form').forEach((form) => {
+        const movement = form.querySelector('[name="movement_type"]');
+        const item = form.querySelector('[name="item_id"]');
+        movement.addEventListener('change', () => refreshTransactionItemOptions(form));
+        item.addEventListener('change', () => {
+            const selected = item.selectedOptions[0];
+            if (selected && selected.getAttribute('data-unit')) {
+                form.querySelector('[name="unit"]').value = selected.getAttribute('data-unit');
+            }
+            updateTransactionQuantityLimit(form);
+        });
+        refreshTransactionItemOptions(form);
+    });
+
     const modal = document.getElementById('editTransactionModal');
     modal.addEventListener('show.bs.modal', function(event) {
         const button = event.relatedTarget;
         const id = button.getAttribute('data-id');
         document.getElementById('editTransactionForm').action = '/transactions/edit/' + id;
         document.getElementById('deleteTransactionForm').action = '/transactions/delete/' + id;
+        document.getElementById('editTransactionForm').setAttribute('data-original-movement', button.getAttribute('data-movement'));
+        document.getElementById('editTransactionForm').setAttribute('data-original-item-id', button.getAttribute('data-item'));
+        document.getElementById('editTransactionForm').setAttribute('data-original-quantity', button.getAttribute('data-quantity'));
         modal.querySelector('[name="movement_type"]').value = button.getAttribute('data-movement');
         modal.querySelector('[name="client_name"]').value = button.getAttribute('data-client');
         modal.querySelector('[name="item_id"]').value = button.getAttribute('data-item');
@@ -194,6 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.querySelector('[name="payment_status"]').value = button.getAttribute('data-status');
         modal.querySelector('[name="transaction_date"]').value = button.getAttribute('data-date');
         modal.querySelector('[name="notes"]').value = button.getAttribute('data-notes');
+        refreshTransactionItemOptions(modal.querySelector('form'));
     });
 });
 </script>

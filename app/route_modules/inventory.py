@@ -15,18 +15,26 @@ def register_routes(main):
     @login_required
     def inventory():
         items = []
+        categories = []
+        category_labels = {}
         search = request.args.get("q", "").strip()
         category = request.args.get("category", "").strip()
         status = request.args.get("status", "").strip()
         try:
             with db_cursor() as (connection, cursor):
+                categories = get_inventory_categories(cursor)
+                connection.commit()
+                category_labels = {
+                    row["category_key"]: row["category_label"]
+                    for row in categories
+                }
                 refresh_system_alerts(cursor, connection)
                 query = "SELECT * FROM inventory_items WHERE 1=1"
                 params = []
                 if search:
                     query += " AND (item_name LIKE %s OR CAST(item_id AS CHAR) LIKE %s)"
                     params.extend([f"%{search}%", f"%{search}%"])
-                if category in ITEM_CATEGORIES:
+                if category in category_labels:
                     query += " AND category = %s"
                     params.append(category)
                 if status == "in_stock":
@@ -46,6 +54,8 @@ def register_routes(main):
             current_search=search,
             current_category=category,
             current_status=status,
+            category_labels=category_labels,
+            category_order=[row["category_key"] for row in categories],
         )
     
     
@@ -58,9 +68,12 @@ def register_routes(main):
             quantity = decimal_form("quantity", "Quantity")
             unit = request.form.get("unit", "").strip()
             min_stock = decimal_form("minimum_stock", "Minimum stock")
-            if not item_name or not unit or category not in ITEM_CATEGORIES:
+            if not item_name or not unit:
                 raise ValueError("Please provide valid inventory details.")
             with db_cursor() as (connection, cursor):
+                ensure_inventory_category_support(cursor)
+                if not inventory_category_exists(cursor, category):
+                    raise ValueError("Please select an existing category or add it first.")
                 cursor.execute(
                     """
                     INSERT INTO inventory_items (item_name, category, quantity, unit, minimum_stock)
@@ -89,9 +102,12 @@ def register_routes(main):
             quantity = decimal_form("quantity", "Quantity")
             unit = request.form.get("unit", "").strip()
             min_stock = decimal_form("minimum_stock", "Minimum stock")
-            if not item_name or not unit or category not in ITEM_CATEGORIES:
+            if not item_name or not unit:
                 raise ValueError("Please provide valid inventory details.")
             with db_cursor() as (connection, cursor):
+                ensure_inventory_category_support(cursor)
+                if not inventory_category_exists(cursor, category):
+                    raise ValueError("Please select an existing category or add it first.")
                 cursor.execute(
                     """
                     UPDATE inventory_items
@@ -123,6 +139,71 @@ def register_routes(main):
             flash("Item deleted successfully.", "success")
         except Error:
             flash("Error deleting item. It may be linked to deliveries.", "danger")
+        return redirect(url_for("main.inventory"))
+
+
+    @main.route("/inventory/category/add", methods=["POST"])
+    @role_required("admin", "manager")
+    def inventory_category_add():
+        try:
+            category_name = request.form.get("category_name", "").strip()
+            category_key = category_key_from_label(category_name)
+            category_label = category_name.strip()
+            with db_cursor() as (connection, cursor):
+                ensure_inventory_category_support(cursor)
+                cursor.execute(
+                    """
+                    INSERT INTO inventory_categories (category_key, category_label)
+                    VALUES (%s, %s)
+                    """,
+                    (category_key, category_label),
+                )
+                connection.commit()
+            log_audit("create", "inventory_category", None, f"Added inventory category {category_label}.")
+            flash("Inventory category added.", "success")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+        except Error as exc:
+            if getattr(exc, "errno", None) == 1062:
+                flash("That category already exists.", "warning")
+            else:
+                flash("Could not add inventory category.", "danger")
+        return redirect(url_for("main.inventory"))
+
+
+    @main.route("/inventory/defect/<int:item_id>", methods=["POST"])
+    @role_required("admin", "manager")
+    def inventory_defect(item_id):
+        try:
+            defect_quantity = decimal_form("defect_quantity", "Defect quantity", 0.01)
+            reason = request.form.get("defect_reason", "").strip()
+            with db_cursor() as (connection, cursor):
+                item = get_inventory_item(cursor, item_id)
+                if item["category"] == "defect":
+                    raise ValueError("This item is already recorded as defect stock.")
+                apply_inventory_delta(cursor, item_id, -defect_quantity)
+                defect_name = f"Defect - {item['item_name']}"
+                defect_id = add_or_increment_inventory_item(
+                    cursor,
+                    defect_name,
+                    "defect",
+                    defect_quantity,
+                    item["unit"],
+                    0,
+                )
+                connection.commit()
+                refresh_system_alerts(cursor, connection)
+            log_audit(
+                "mark_defect",
+                "inventory_item",
+                defect_id,
+                f"Moved {defect_quantity} {item['unit']} from {item['item_name']} to defect stock. {reason}",
+            )
+            flash("Defect stock recorded and removed from sellable inventory.", "success")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+        except Error:
+            flash("Could not record defect stock.", "danger")
         return redirect(url_for("main.inventory"))
     
     

@@ -7,13 +7,13 @@
     <h1 class="page-title">User Management</h1>
     <div class="top-bar-actions">
         <a class="app-btn app-btn-outline py-1 px-3" href="{{ url_for('main.dashboard') }}">Dashboard</a>
-        <div class="user-profile">
+        <a class="user-profile" href="{{ url_for('main.profile') }}" aria-label="Open profile">
             <div class="user-avatar">{{ session.get("user_name", "A")[0] | upper }}</div>
             <div class="user-info">
                 <span class="user-name">{{ session.get("user_name", "Admin") }}</span>
                 <span class="user-role">{{ session.get("user_role", "")|title }}</span>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 

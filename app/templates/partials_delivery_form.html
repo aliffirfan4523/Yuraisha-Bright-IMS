@@ -13,7 +13,9 @@
     <label class="form-label">Inventory Item</label>
     <select class="form-select" name="item_id" required>
         {% for item in items %}
-        <option value="{{ item.item_id }}">{{ item.item_name }}</option>
+        <option value="{{ item.item_id }}" data-category="{{ item.category }}">
+            {{ item.item_name }} ({{ item.quantity }})
+        </option>
         {% endfor %}
     </select>
 </div>

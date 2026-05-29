@@ -1,7 +1,7 @@
 <div class="mb-3">
     <label class="form-label">Movement Type</label>
     <select class="form-select" name="movement_type" required>
-        <option value="outbound">Outbound - Sell Oil / Stock</option>
+        <option value="outbound">Outbound - Sell Finished Oil</option>
         <option value="inbound">Inbound - Buy Material</option>
     </select>
 </div>
@@ -13,14 +13,18 @@
     <label class="form-label">Inventory Item</label>
     <select class="form-select" name="item_id" required>
         {% for item in items %}
-        <option value="{{ item.item_id }}">{{ item.item_name }} ({{ item.unit }})</option>
+        <option value="{{ item.item_id }}" data-category="{{ item.category }}" data-unit="{{ item.unit }}" data-quantity="{{ item.quantity }}">
+            {{ item.item_name }} ({{ item.quantity }} {{ item.unit }})
+        </option>
         {% endfor %}
     </select>
+    <div class="text-muted mt-1" style="font-size: 12px;">Inbound shows raw materials. Outbound shows finished oil products.</div>
 </div>
 <div class="row">
     <div class="col-md-6 mb-3">
         <label class="form-label">Quantity</label>
         <input class="form-control" type="number" min="0.01" step="0.01" name="quantity" required>
+        <div class="text-muted mt-1" data-quantity-limit-note style="font-size: 12px;"></div>
     </div>
     <div class="col-md-6 mb-3">
         <label class="form-label">Unit</label>

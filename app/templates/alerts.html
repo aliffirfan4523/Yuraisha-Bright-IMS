@@ -6,13 +6,13 @@
 <div class="top-bar mb-4">
     <h1 class="page-title">Alerts and Notifications</h1>
     <div class="top-bar-actions">
-        <div class="user-profile">
+        <a class="user-profile" href="{{ url_for('main.profile') }}" aria-label="Open profile">
             <div class="user-avatar">{{ session.get("user_name", "U")[0] | upper }}</div>
             <div class="user-info">
                 <span class="user-name">{{ session.get("user_name", "User") }}</span>
                 <span class="user-role">{{ session.get("user_role", "")|title }}</span>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
@@ -31,6 +31,10 @@
     <div class="col-md-4 col-lg-3">
         <div class="card shadow-sm">
             <div class="card-body">
+                <div class="alert-unread-summary">
+                    <span>{{ unread_alerts_count }}</span>
+                    <strong>Unread notifications</strong>
+                </div>
                 <h6 class="text-muted fw-bold mb-3" style="font-size: 11px; text-transform: uppercase;">Categories</h6>
                 <div class="d-flex flex-column gap-2">
                     <a class="btn text-start {% if not current_type %}app-btn-primary{% else %}btn-light border{% endif %}" href="{{ url_for('main.alerts') }}">All Alerts</a>

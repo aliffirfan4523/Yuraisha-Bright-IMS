@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS inventory_items (
     item_id INT AUTO_INCREMENT PRIMARY KEY,
     item_name VARCHAR(100) NOT NULL,
-    category ENUM('box', 'plastic', 'cooking_oil') NOT NULL,
+    category VARCHAR(50) NOT NULL,
     quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
     unit VARCHAR(20) NOT NULL,
     minimum_stock DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -29,12 +29,33 @@ CREATE TABLE IF NOT EXISTS inventory_items (
 CREATE INDEX idx_inventory_category ON inventory_items (category);
 CREATE INDEX idx_inventory_stock ON inventory_items (quantity, minimum_stock);
 
+CREATE TABLE IF NOT EXISTS inventory_categories (
+    category_key VARCHAR(50) PRIMARY KEY,
+    category_label VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO inventory_categories (category_key, category_label) VALUES
+    ('plastic_1kg', '1kg Plastic Packs'),
+    ('plastic_10kg', '10kg Plastic Packs'),
+    ('bottle_3kg', '3kg Bottles'),
+    ('bottle_5kg', '5kg Bottles'),
+    ('box_1kg', '1kg Boxes'),
+    ('box_3kg', '3kg Boxes'),
+    ('box_5kg', '5kg Boxes'),
+    ('box_10kg', '10kg Boxes'),
+    ('cooking_oil', 'Cooking Oil'),
+    ('finished_goods', 'Finished Goods'),
+    ('defect', 'Defect Stock')
+ON DUPLICATE KEY UPDATE category_label = VALUES(category_label);
+
 -- 3. Supplier Deliveries
 CREATE TABLE IF NOT EXISTS supplier_deliveries (
     delivery_id INT AUTO_INCREMENT PRIMARY KEY,
     movement_type ENUM('inbound', 'outbound') NOT NULL DEFAULT 'inbound',
     supplier_name VARCHAR(100) NOT NULL,
     item_id INT NOT NULL,
+    transaction_id INT NULL UNIQUE,
     quantity DECIMAL(10,2) NOT NULL,
     expected_date DATE,
     received_date DATE,
@@ -66,17 +87,25 @@ CREATE TABLE IF NOT EXISTS client_transactions (
 CREATE INDEX idx_transactions_status_date ON client_transactions (payment_status, transaction_date);
 CREATE INDEX idx_transactions_movement_item ON client_transactions (movement_type, item_id);
 
+ALTER TABLE supplier_deliveries
+ADD CONSTRAINT fk_deliveries_transaction
+FOREIGN KEY (transaction_id) REFERENCES client_transactions(transaction_id) ON DELETE CASCADE;
+
 -- 5. Usage Calculations
 CREATE TABLE IF NOT EXISTS usage_calculations (
     calculation_id INT AUTO_INCREMENT PRIMARY KEY,
     box_size_kg DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+    units_per_box INT NOT NULL DEFAULT 20,
     oil_ratio DECIMAL(10,2) NOT NULL DEFAULT 1.00,
     plastic_ratio DECIMAL(10,2) NOT NULL DEFAULT 0.10,
     available_oil DECIMAL(10,2) NOT NULL,
     available_plastic DECIMAL(10,2) NOT NULL,
+    available_boxes DECIMAL(10,2) NOT NULL DEFAULT 0,
     boxes_can_produce INT NOT NULL,
     remaining_oil DECIMAL(10,2) NOT NULL,
     remaining_plastic DECIMAL(10,2) NOT NULL,
+    remaining_boxes DECIMAL(10,2) NOT NULL DEFAULT 0,
+    record_type VARCHAR(20) NOT NULL DEFAULT 'production',
     calculated_by INT,
     calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (calculated_by) REFERENCES users(user_id)

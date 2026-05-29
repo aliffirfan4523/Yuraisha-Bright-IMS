@@ -6,13 +6,13 @@
 <div class="top-bar mb-4">
     <h1 class="page-title">Reports</h1>
     <div class="top-bar-actions">
-        <div class="user-profile">
+        <a class="user-profile" href="{{ url_for('main.profile') }}" aria-label="Open profile">
             <div class="user-avatar">{{ session.get("user_name", "U")[0] | upper }}</div>
             <div class="user-info">
                 <span class="user-name">{{ session.get("user_name", "User") }}</span>
                 <span class="user-role">{{ session.get("user_role", "")|title }}</span>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
