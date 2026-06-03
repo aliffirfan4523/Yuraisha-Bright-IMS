@@ -37,13 +37,7 @@ CREATE TABLE IF NOT EXISTS inventory_categories (
 
 INSERT INTO inventory_categories (category_key, category_label) VALUES
     ('plastic_1kg', '1kg Plastic Packs'),
-    ('plastic_10kg', '10kg Plastic Packs'),
-    ('bottle_3kg', '3kg Bottles'),
-    ('bottle_5kg', '5kg Bottles'),
     ('box_1kg', '1kg Boxes'),
-    ('box_3kg', '3kg Boxes'),
-    ('box_5kg', '5kg Boxes'),
-    ('box_10kg', '10kg Boxes'),
     ('cooking_oil', 'Cooking Oil'),
     ('finished_goods', 'Finished Goods'),
     ('defect', 'Defect Stock')
@@ -95,7 +89,7 @@ FOREIGN KEY (transaction_id) REFERENCES client_transactions(transaction_id) ON D
 CREATE TABLE IF NOT EXISTS usage_calculations (
     calculation_id INT AUTO_INCREMENT PRIMARY KEY,
     box_size_kg DECIMAL(10,2) NOT NULL DEFAULT 1.00,
-    units_per_box INT NOT NULL DEFAULT 20,
+    units_per_box INT NOT NULL DEFAULT 17,
     oil_ratio DECIMAL(10,2) NOT NULL DEFAULT 1.00,
     plastic_ratio DECIMAL(10,2) NOT NULL DEFAULT 0.10,
     available_oil DECIMAL(10,2) NOT NULL,

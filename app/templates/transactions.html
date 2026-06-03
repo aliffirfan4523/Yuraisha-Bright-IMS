@@ -227,9 +227,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const category = option.getAttribute('data-category');
             const visible = movement === 'inbound'
                 ? [
-                    'box_1kg', 'box_3kg', 'box_5kg', 'box_10kg',
-                    'plastic_1kg', 'plastic_10kg',
-                    'bottle_3kg', 'bottle_5kg',
+                    'box_1kg',
+                    'plastic_1kg',
                     'cooking_oil'
                 ].includes(category)
                 : category === 'finished_goods';

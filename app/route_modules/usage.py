@@ -44,11 +44,12 @@ def register_routes(main):
                 cursor.execute("SELECT COALESCE(SUM(quantity), 0) AS quantity FROM inventory_items WHERE category = 'cooking_oil'")
                 oil["quantity"] = float(cursor.fetchone()["quantity"])
                 oil["quantity_str"] = f"{oil['quantity']:,.0f}"
+                placeholders = ", ".join(["%s"] * len(PACKAGING_CATEGORIES))
                 cursor.execute(
-                    """
+                    f"""
                     SELECT category, COALESCE(SUM(quantity), 0) AS quantity
                     FROM inventory_items
-                    WHERE category IN (%s, %s, %s, %s, %s, %s, %s, %s)
+                    WHERE category IN ({placeholders})
                     GROUP BY category
                     """,
                     tuple(sorted(PACKAGING_CATEGORIES)),
@@ -100,7 +101,7 @@ def register_routes(main):
                     input_values["boxes"] = request.form.get("available_boxes", selected_box_stock["quantity"])
                 if request.method == "POST":
                     action = request.form.get("action", "calculate")
-                    input_oil = decimal_form("available_oil", "Available oil")
+                    input_oil = int_form("available_oil", "Available oil")
                     if selected_box_size not in BOX_RATIOS:
                         raise ValueError("Please select a valid box ratio.")
                     units_per_box = selected_ratio["units_per_box"]
@@ -110,8 +111,8 @@ def register_routes(main):
                     box_category = selected_ratio["box_category"]
                     box_label = selected_ratio["box_label"]
                     package_ratio = units_per_box
-                    input_package = decimal_form("available_package", package_label)
-                    input_boxes = decimal_form("available_boxes", box_label)
+                    input_package = int_form("available_package", package_label)
+                    input_boxes = int_form("available_boxes", box_label)
                     possible_by_oil = int(input_oil / oil_ratio)
                     possible_by_package = int(input_package / package_ratio)
                     possible_by_boxes = int(input_boxes)

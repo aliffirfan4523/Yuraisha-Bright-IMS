@@ -14,36 +14,18 @@ from app.db import get_db_connection
 ROLES = {"admin", "manager"}
 PACKAGING_CATEGORIES = {
     "box_1kg",
-    "box_3kg",
-    "box_5kg",
-    "box_10kg",
     "plastic_1kg",
-    "plastic_10kg",
-    "bottle_3kg",
-    "bottle_5kg",
 }
 PACKAGING_INPUT_ORDER = [
     "plastic_1kg",
-    "plastic_10kg",
-    "bottle_3kg",
-    "bottle_5kg",
     "box_1kg",
-    "box_3kg",
-    "box_5kg",
-    "box_10kg",
 ]
 ITEM_CATEGORIES = PACKAGING_CATEGORIES | {"cooking_oil", "finished_goods", "defect"}
 RAW_MATERIAL_CATEGORIES = PACKAGING_CATEGORIES | {"cooking_oil"}
 SELLABLE_CATEGORIES = {"finished_goods"}
 INVENTORY_CATEGORY_LABELS = {
     "box_1kg": "1kg Boxes",
-    "box_3kg": "3kg Boxes",
-    "box_5kg": "5kg Boxes",
-    "box_10kg": "10kg Boxes",
     "plastic_1kg": "1kg Plastic Packs",
-    "plastic_10kg": "10kg Plastic Packs",
-    "bottle_3kg": "3kg Bottles",
-    "bottle_5kg": "5kg Bottles",
     "cooking_oil": "Cooking Oil",
     "finished_goods": "Finished Goods",
     "defect": "Defect Stock",
@@ -59,38 +41,11 @@ BOX_RATIOS = {
     "1": {
         "label": "1kg Box",
         "box_size_kg": 1,
-        "units_per_box": 20,
+        "units_per_box": 17,
         "package_category": "plastic_1kg",
         "package_label": "1kg Plastic Packs",
         "box_category": "box_1kg",
         "box_label": "1kg Boxes",
-    },
-    "3": {
-        "label": "3kg Box",
-        "box_size_kg": 3,
-        "units_per_box": 4,
-        "package_category": "bottle_3kg",
-        "package_label": "3kg Bottles",
-        "box_category": "box_3kg",
-        "box_label": "3kg Boxes",
-    },
-    "5": {
-        "label": "5kg Box",
-        "box_size_kg": 5,
-        "units_per_box": 2,
-        "package_category": "bottle_5kg",
-        "package_label": "5kg Bottles",
-        "box_category": "box_5kg",
-        "box_label": "5kg Boxes",
-    },
-    "10": {
-        "label": "10kg Box",
-        "box_size_kg": 10,
-        "units_per_box": 1,
-        "package_category": "plastic_10kg",
-        "package_label": "10kg Plastic Packs",
-        "box_category": "box_10kg",
-        "box_label": "10kg Boxes",
     },
 }
 
@@ -323,11 +278,11 @@ def get_inventory_categories(cursor):
         SELECT category_key, category_label
         FROM inventory_categories
         ORDER BY
-            CASE WHEN FIELD(category_key, 'plastic_1kg', 'plastic_10kg', 'bottle_3kg', 'bottle_5kg',
-                'box_1kg', 'box_3kg', 'box_5kg', 'box_10kg',
+            CASE WHEN FIELD(category_key, 'plastic_1kg',
+                'box_1kg',
                 'cooking_oil', 'finished_goods', 'defect') = 0 THEN 1 ELSE 0 END,
-            FIELD(category_key, 'plastic_1kg', 'plastic_10kg', 'bottle_3kg', 'bottle_5kg',
-                'box_1kg', 'box_3kg', 'box_5kg', 'box_10kg',
+            FIELD(category_key, 'plastic_1kg',
+                'box_1kg',
                 'cooking_oil', 'finished_goods', 'defect'),
             category_label
         """

@@ -40,9 +40,8 @@ def main():
                 ALTER TABLE inventory_items
                 MODIFY category ENUM(
                     'box', 'plastic', 'bottle',
-                    'box_1kg', 'box_3kg', 'box_5kg', 'box_10kg',
-                    'plastic_1kg', 'plastic_10kg',
-                    'bottle_3kg', 'bottle_5kg',
+                    'box_1kg',
+                    'plastic_1kg',
                     'cooking_oil', 'finished_goods', 'defect'
                 ) NOT NULL
                 """
@@ -51,15 +50,8 @@ def main():
             """
             UPDATE inventory_items
             SET category = CASE
-                WHEN category = 'box' AND LOWER(item_name) LIKE '%10kg%' THEN 'box_10kg'
-                WHEN category = 'box' AND LOWER(item_name) LIKE '%5kg%' THEN 'box_5kg'
-                WHEN category = 'box' AND LOWER(item_name) LIKE '%3kg%' THEN 'box_3kg'
-                WHEN category = 'box' AND LOWER(item_name) LIKE '%large%' THEN 'box_10kg'
                 WHEN category = 'box' THEN 'box_1kg'
-                WHEN category = 'plastic' AND LOWER(item_name) LIKE '%10kg%' THEN 'plastic_10kg'
                 WHEN category = 'plastic' THEN 'plastic_1kg'
-                WHEN category = 'bottle' AND LOWER(item_name) LIKE '%5kg%' THEN 'bottle_5kg'
-                WHEN category = 'bottle' THEN 'bottle_3kg'
                 ELSE category
             END
             WHERE category IN ('box', 'plastic', 'bottle')
@@ -70,9 +62,8 @@ def main():
                 """
                 ALTER TABLE inventory_items
                 MODIFY category ENUM(
-                    'box_1kg', 'box_3kg', 'box_5kg', 'box_10kg',
-                    'plastic_1kg', 'plastic_10kg',
-                    'bottle_3kg', 'bottle_5kg',
+                    'box_1kg',
+                    'plastic_1kg',
                     'cooking_oil', 'finished_goods', 'defect'
                 ) NOT NULL
                 """
@@ -91,13 +82,7 @@ def main():
             """
             INSERT INTO inventory_categories (category_key, category_label) VALUES
                 ('plastic_1kg', '1kg Plastic Packs'),
-                ('plastic_10kg', '10kg Plastic Packs'),
-                ('bottle_3kg', '3kg Bottles'),
-                ('bottle_5kg', '5kg Bottles'),
                 ('box_1kg', '1kg Boxes'),
-                ('box_3kg', '3kg Boxes'),
-                ('box_5kg', '5kg Boxes'),
-                ('box_10kg', '10kg Boxes'),
                 ('cooking_oil', 'Cooking Oil'),
                 ('finished_goods', 'Finished Goods'),
                 ('defect', 'Defect Stock')
@@ -237,6 +222,59 @@ def main():
             """
         )
 
+        print("Cleaning up old 3kg, 5kg, and 10kg data...")
+        # 1. Delete supplier deliveries related to the 3kg, 5kg, 10kg items
+        cursor.execute(
+            """
+            DELETE FROM supplier_deliveries 
+            WHERE item_id IN (
+                SELECT item_id FROM inventory_items 
+                WHERE category IN ('plastic_10kg', 'bottle_3kg', 'bottle_5kg', 'box_3kg', 'box_5kg', 'box_10kg')
+                   OR item_name LIKE '%3kg%' 
+                   OR item_name LIKE '%5kg%' 
+                   OR item_name LIKE '%10kg%'
+            )
+            """
+        )
+        # 2. Delete client transactions related to the 3kg, 5kg, 10kg items
+        cursor.execute(
+            """
+            DELETE FROM client_transactions
+            WHERE item_id IN (
+                SELECT item_id FROM inventory_items 
+                WHERE category IN ('plastic_10kg', 'bottle_3kg', 'bottle_5kg', 'box_3kg', 'box_5kg', 'box_10kg')
+                   OR item_name LIKE '%3kg%' 
+                   OR item_name LIKE '%5kg%' 
+                   OR item_name LIKE '%10kg%'
+            )
+            """
+        )
+        # 3. Delete notifications related to low stock or delayed delivery of these items
+        cursor.execute(
+            """
+            DELETE FROM notifications
+            WHERE title LIKE '%3kg%' OR title LIKE '%5kg%' OR title LIKE '%10kg%'
+               OR message LIKE '%3kg%' OR message LIKE '%5kg%' OR message LIKE '%10kg%'
+            """
+        )
+        # 4. Delete the inventory items
+        cursor.execute(
+            """
+            DELETE FROM inventory_items 
+            WHERE category IN ('plastic_10kg', 'bottle_3kg', 'bottle_5kg', 'box_3kg', 'box_5kg', 'box_10kg')
+               OR item_name LIKE '%3kg%' 
+               OR item_name LIKE '%5kg%' 
+               OR item_name LIKE '%10kg%'
+            """
+        )
+        # 5. Delete the inventory categories
+        cursor.execute(
+            """
+            DELETE FROM inventory_categories 
+            WHERE category_key IN ('plastic_10kg', 'bottle_3kg', 'bottle_5kg', 'box_3kg', 'box_5kg', 'box_10kg')
+            """
+        )
+
         print("Linking transactions to tracking records...")
         cursor.execute(
             """
@@ -348,38 +386,32 @@ def main():
                 """
                 INSERT INTO inventory_items (item_name, category, quantity, unit, minimum_stock) VALUES
                 ('1kg Empty Boxes', 'box_1kg', 1250, 'Boxes', 200),
-                ('3kg Empty Boxes', 'box_3kg', 900, 'Boxes', 100),
-                ('5kg Empty Boxes', 'box_5kg', 800, 'Boxes', 100),
-                ('10kg Empty Boxes', 'box_10kg', 650, 'Boxes', 80),
                 ('Cooking Oil Stock', 'cooking_oil', 4500, 'Liters', 500),
                 ('1kg Plastic Packs', 'plastic_1kg', 1250, 'Pcs', 500),
-                ('10kg Plastic Packs', 'plastic_10kg', 450, 'Pcs', 100),
-                ('3kg Bottles', 'bottle_3kg', 900, 'Pcs', 250),
-                ('5kg Bottles', 'bottle_5kg', 700, 'Pcs', 200),
                 ('Finished 1kg Box', 'finished_goods', 120, 'Boxes', 20)
                 """
             )
             cursor.execute(
                 """
                 INSERT INTO supplier_deliveries (movement_type, supplier_name, item_id, quantity, expected_date, status) VALUES
-                ('inbound', 'Apex Logistics', 6, 500, CURDATE(), 'received'),
-                ('inbound', 'Bright Supply Trading', 5, 1000, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'pending'),
-                ('inbound', 'Metro Packaging', 8, 200, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'pending')
+                ('inbound', 'Apex Logistics', 3, 500, CURDATE(), 'received'),
+                ('inbound', 'Bright Supply Trading', 2, 1000, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'pending'),
+                ('inbound', 'Metro Packaging', 1, 200, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'pending')
                 """
             )
             cursor.execute(
                 """
                 INSERT INTO client_transactions
                 (movement_type, item_id, quantity, unit, client_name, boxes_sold, amount, payment_status, transaction_date, notes) VALUES
-                ('outbound', 10, 50, 'Boxes', 'Kedai Runcit Seri Maju', 50, 1420.00, 'completed', DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'Monthly oil box delivery'),
-                ('outbound', 10, 30, 'Boxes', 'Pasar Mini Indah', 30, 845.00, 'pending', DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'Awaiting payment'),
-                ('outbound', 10, 40, 'Boxes', 'Restoran Cahaya', 40, 2210.00, 'completed', DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'Bulk order')
+                ('outbound', 4, 50, 'Boxes', 'Kedai Runcit Seri Maju', 50, 1420.00, 'completed', DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'Monthly oil box delivery'),
+                ('outbound', 4, 30, 'Boxes', 'Pasar Mini Indah', 30, 845.00, 'pending', DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'Awaiting payment'),
+                ('outbound', 4, 40, 'Boxes', 'Restoran Cahaya', 40, 2210.00, 'completed', DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'Bulk order')
                 """
             )
             cursor.execute(
                 """
                 INSERT INTO notifications (title, message, type, is_read) VALUES
-                ('Low Stock: 10kg Plastic Packs', '10kg Plastic Packs has dropped below minimum stock level.', 'low_stock', FALSE),
+                ('Low Stock: 1kg Plastic Packs', '1kg Plastic Packs has dropped below minimum stock level.', 'low_stock', FALSE),
                 ('Delayed Delivery: TRK-3', 'Metro Packaging delivery is overdue and needs follow-up.', 'delayed_delivery', FALSE),
                 ('System Ready', 'Inventory Management System modules are available.', 'general', TRUE)
                 """
@@ -387,13 +419,7 @@ def main():
 
         default_category_rows = [
             ("1kg Empty Boxes", "box_1kg", "Boxes", 200),
-            ("3kg Empty Boxes", "box_3kg", "Boxes", 100),
-            ("5kg Empty Boxes", "box_5kg", "Boxes", 100),
-            ("10kg Empty Boxes", "box_10kg", "Boxes", 80),
             ("1kg Plastic Packs", "plastic_1kg", "Pcs", 500),
-            ("10kg Plastic Packs", "plastic_10kg", "Pcs", 100),
-            ("3kg Bottles", "bottle_3kg", "Pcs", 250),
-            ("5kg Bottles", "bottle_5kg", "Pcs", 200),
         ]
         for item_name, category, unit, minimum_stock in default_category_rows:
             cursor.execute(

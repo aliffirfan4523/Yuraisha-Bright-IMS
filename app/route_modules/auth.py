@@ -90,7 +90,7 @@ def register_routes(main):
             username = request.form.get("username", "").strip().lower()
             email = request.form.get("email", "").strip().lower()
             requested_role = request.form.get("role", "manager")
-            role = requested_role if first_account or session.get("user_role") == "admin" else "manager"
+            role = requested_role
             password = request.form.get("password", "")
             confirm_password = request.form.get("confirm_password", "")
     

@@ -59,9 +59,6 @@
                         <option value="admin">Admin</option>
                         <option value="manager">Manager</option>
                     </select>
-                    {% if not first_account and session.get("user_role") != "admin" %}
-                    <small class="text-muted">Public registration creates manager accounts. Admin permissions are assigned by an administrator.</small>
-                    {% endif %}
                 </div>
             </div>
 

@@ -42,16 +42,16 @@
 
                     <label class="form-label fw-bold">Available Oil Quantity</label>
                     <div class="input-group mb-2">
-                        <input type="number" step="0.01" min="0" class="form-control" name="available_oil" value="{{ input_values.oil }}" required>
+                        <input type="number" step="1" min="0" class="form-control" name="available_oil" value="{{ input_values.oil }}" required>
                         <span class="input-group-text">Liters</span>
                     </div>
                     <div class="text-muted mb-4" style="font-size: 12px;">Current inventory: {{ oil.quantity_str }} liters</div>
-
+ 
                     <div class="row g-2 mb-4">
                         <div class="col-md-6">
                             <label class="form-label fw-bold" id="packageLabel">{{ selected_package_stock.label }}</label>
                             <div class="input-group">
-                                <input type="number" step="0.01" min="0" class="form-control" id="availablePackage" name="available_package" value="{{ input_values.package }}" required>
+                                <input type="number" step="1" min="0" class="form-control" id="availablePackage" name="available_package" value="{{ input_values.package }}" required>
                                 <span class="input-group-text">Pcs</span>
                             </div>
                             <div class="text-muted mt-1" id="packageInventory" style="font-size: 12px;">Inventory: {{ selected_package_stock.quantity_str }}</div>
@@ -59,7 +59,7 @@
                         <div class="col-md-6">
                             <label class="form-label fw-bold" id="boxLabel">{{ selected_box_stock.label }}</label>
                             <div class="input-group">
-                                <input type="number" step="0.01" min="0" class="form-control" id="availableBoxes" name="available_boxes" value="{{ input_values.boxes }}" required>
+                                <input type="number" step="1" min="0" class="form-control" id="availableBoxes" name="available_boxes" value="{{ input_values.boxes }}" required>
                                 <span class="input-group-text">Boxes</span>
                             </div>
                             <div class="text-muted mt-1" id="boxInventory" style="font-size: 12px;">Inventory: {{ selected_box_stock.quantity_str }}</div>
@@ -97,14 +97,14 @@
                     <div class="col-md">
                         <div class="result-tile">
                             <div>Remaining Oil</div>
-                            <strong>{{ "%.2f"|format(result.remaining_oil) }}</strong>
+                            <strong>{{ "%.0f"|format(result.remaining_oil) }}</strong>
                             <span>liters</span>
                         </div>
                     </div>
                     <div class="col-md">
                         <div class="result-tile">
                             <div>Remaining {{ result.package_label }}</div>
-                            <strong>{{ "%.2f"|format(result.remaining_package) }}</strong>
+                            <strong>{{ "%.0f"|format(result.remaining_package) }}</strong>
                             <span>pcs</span>
                         </div>
                     </div>
@@ -118,7 +118,7 @@
                 </div>
                 <p class="mt-4 mb-0 text-white">
                     Ratio: <strong>{{ result.box_label }}</strong>
-                    ({{ "%.2f"|format(result.oil_ratio) }}L oil + {{ result.units_per_box }} {{ result.package_label|lower }} + 1 {{ result.box_stock_label|lower }}).
+                    ({{ "%.0f"|format(result.oil_ratio) }}L oil + {{ result.units_per_box }} {{ result.package_label|lower }} + 1 {{ result.box_stock_label|lower }}).
                     Limiting factor: <strong>{{ result.limiting_factor }}</strong>
                 </p>
                 {% if result.estimated_output_raw > 0 %}
@@ -246,10 +246,10 @@
                     <td>{{ "%.0f"|format(calculation.box_size_kg) }}kg</td>
                     <td>{{ calculation.units_per_box }}</td>
                     <td><strong>{{ "{:,}".format(calculation.boxes_can_produce) }}</strong> boxes</td>
-                    <td>{{ "%.2f"|format(calculation.boxes_can_produce * calculation.oil_ratio) }}L</td>
-                    <td>{{ "%.2f"|format(calculation.boxes_can_produce * calculation.plastic_ratio) }} pcs</td>
+                    <td>{{ "%.0f"|format(calculation.boxes_can_produce * calculation.oil_ratio) }}L</td>
+                    <td>{{ "%.0f"|format(calculation.boxes_can_produce * calculation.plastic_ratio) }} pcs</td>
                     <td>{{ calculation.boxes_can_produce }} boxes</td>
-                    <td>{{ "%.2f"|format(calculation.remaining_oil) }}L</td>
+                    <td>{{ "%.0f"|format(calculation.remaining_oil) }}L</td>
                 </tr>
                 {% else %}
                 <tr>
