@@ -63,7 +63,7 @@
                 <h4 class="alert-title">{{ alert.title }}</h4>
                 <p class="alert-desc">{{ alert.message }}</p>
                 {% if not alert.is_read %}
-                <form method="POST" action="{{ url_for('main.alert_mark_read', notification_id=alert.notification_id) }}">
+                <form method="POST" action="{{ url_for('main.alert_mark_read', notification_id=alert.id) }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-sm btn-light border" type="submit">Mark as read</button>
                 </form>
