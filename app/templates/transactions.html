@@ -12,7 +12,7 @@
                 <input type="text" name="q" placeholder="Search transactions..." value="{{ current_search }}">
             </div>
             <input type="hidden" name="status" value="{{ current_status }}">
-            <input type="hidden" name="movement_type" value="{{ current_movement_type }}">
+            <button type="submit" class="icon-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></button>
         </form>
         <a class="user-profile" href="{{ url_for('main.profile') }}" aria-label="Open profile">
             <div class="user-avatar">{{ session.get("user_name", "U")[0] | upper }}</div>
@@ -26,8 +26,8 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="fw-bold mb-1" style="font-size: 28px;">Inbound and Outbound Transactions</h2>
-        <p class="text-muted mb-0">Record bought materials and sold oil while creating synced tracking records for inventory movement.</p>
+        <h2 class="fw-bold mb-1" style="font-size: 28px;">Client Transactions</h2>
+        <p class="text-muted mb-0">Record sold oil boxes. Raw material consumption is calculated and deducted dynamically.</p>
     </div>
     <button class="app-btn app-btn-primary py-1 px-3" data-bs-toggle="modal" data-bs-target="#addTransactionModal">+ New Transaction</button>
 </div>
@@ -54,11 +54,6 @@
     <div class="table-header-controls">
         <form method="GET" action="{{ url_for('main.transactions') }}" class="d-flex gap-2 mb-0">
             <input type="hidden" name="q" value="{{ current_search }}">
-            <select name="movement_type" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="" {% if not current_movement_type %}selected{% endif %}>All Movements</option>
-                <option value="inbound" {% if current_movement_type == 'inbound' %}selected{% endif %}>Inbound</option>
-                <option value="outbound" {% if current_movement_type == 'outbound' %}selected{% endif %}>Outbound</option>
-            </select>
             <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                 <option value="" {% if not current_status %}selected{% endif %}>All Payments</option>
                 <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>Completed</option>
@@ -72,10 +67,9 @@
         <thead>
             <tr>
                 <th>Tx ID</th>
-                <th>Type</th>
-                <th>Supplier / Customer</th>
-                <th>Item</th>
-                <th>Quantity</th>
+                <th>Client</th>
+                <th>Quantity (Boxes)</th>
+                <th>Materials Used</th>
                 <th>Amount</th>
                 <th>Date</th>
                 <th>Status</th>
@@ -87,24 +81,20 @@
             <tr>
                 <td class="text-muted">TRX-{{ tx.transaction_id }}</td>
                 <td>
-                    {% if tx.movement_type == 'inbound' %}
-                    <span class="status-badge status-in-stock">Inbound</span>
-                    {% else %}
-                    <span class="status-badge status-low-stock">Outbound</span>
-                    {% endif %}
-                </td>
-                <td>
                     <div class="fw-bold">{{ tx.client_name }}</div>
-                    <div class="text-muted" style="font-size: 12px;">{{ tx.notes or "No notes" }}</div>
+                    <div class="text-muted" style="font-size: 12px;">By {{ tx.employee_name or 'System' }}</div>
                 </td>
-                <td>{{ tx.item_name or "Unlinked item" }}</td>
-                <td>{{ tx.quantity }} {{ tx.unit }}</td>
-                <td class="fw-bold">RM {{ "{:,.2f}".format(tx.amount) }}</td>
+                <td class="fw-bold">{{ tx.quantity_sold }}</td>
+                <td class="text-muted" style="font-size: 12px;">
+                    {{ tx.oil_used_kg }}kg Oil<br/>
+                    {{ tx.plastic_used_units }} Plastics
+                </td>
+                <td class="fw-bold">RM {{ "{:,.2f}".format(tx.transaction_amount) }}</td>
                 <td class="text-muted">{{ tx.transaction_date }}</td>
                 <td>
-                    {% if tx.payment_status == 'completed' %}
+                    {% if tx.transaction_status == 'completed' %}
                     <span class="status-badge status-in-stock">Completed</span>
-                    {% elif tx.payment_status == 'pending' %}
+                    {% elif tx.transaction_status == 'pending' %}
                     <span class="status-badge status-low-stock">Pending</span>
                     {% else %}
                     <span class="status-badge status-out-of-stock">Failed</span>
@@ -114,19 +104,15 @@
                     <button class="btn btn-sm btn-light border"
                             data-bs-toggle="modal" data-bs-target="#editTransactionModal"
                             data-id="{{ tx.transaction_id }}"
-                            data-movement="{{ tx.movement_type }}"
                             data-client="{{ tx.client_name }}"
-                            data-item="{{ tx.item_id or '' }}"
-                            data-quantity="{{ tx.quantity }}"
-                            data-unit="{{ tx.unit }}"
-                            data-amount="{{ tx.amount }}"
-                            data-status="{{ tx.payment_status }}"
-                            data-date="{{ tx.transaction_date }}"
-                            data-notes="{{ tx.notes or '' }}">Edit</button>
+                            data-quantity="{{ tx.quantity_sold }}"
+                            data-amount="{{ tx.transaction_amount }}"
+                            data-status="{{ tx.transaction_status }}"
+                            data-date="{{ tx.transaction_date }}">Edit</button>
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="9" class="text-center text-muted py-4">No transactions found.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">No transactions found.</td></tr>
             {% endfor %}
         </tbody>
     </table>
@@ -141,7 +127,37 @@
             </div>
             <form method="POST" action="{{ url_for('main.transaction_add') }}">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-body">{% include "partials_transaction_form.html" %}</div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold" style="font-size: 13px;">Client Name</label>
+                        <input type="text" name="client_name" class="form-control" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Quantity Sold (Boxes)</label>
+                            <input type="number" step="1" min="1" name="quantity_sold" class="form-control" required>
+                            <div class="text-muted mt-1" style="font-size: 11px;">Consumes 17kg oil, 17 plastics per box</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Transaction Amount (RM)</label>
+                            <input type="number" step="0.01" name="transaction_amount" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Date</label>
+                            <input type="date" name="transaction_date" class="form-control" value="{{ current_date|default(None) }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Status</label>
+                            <select name="transaction_status" class="form-select" required>
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                                <option value="failed">Failed</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="app-btn app-btn-primary border-0">Save Transaction</button>
@@ -160,7 +176,37 @@
             </div>
             <form method="POST" id="editTransactionForm">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-body">{% include "partials_transaction_form.html" %}</div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold" style="font-size: 13px;">Client Name</label>
+                        <input type="text" name="client_name" id="editClient" class="form-control" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Quantity Sold (Boxes)</label>
+                            <input type="number" step="1" min="1" name="quantity_sold" id="editQuantity" class="form-control" required>
+                            <div class="text-muted mt-1" style="font-size: 11px;">Consumes 17kg oil, 17 plastics per box</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Transaction Amount (RM)</label>
+                            <input type="number" step="0.01" name="transaction_amount" id="editAmount" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Date</label>
+                            <input type="date" name="transaction_date" id="editDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Status</label>
+                            <select name="transaction_status" id="editStatus" class="form-select" required>
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                                <option value="failed">Failed</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <div class="modal-footer justify-content-between">
                     <button type="button" class="btn btn-outline-danger" onclick="document.getElementById('deleteTransactionForm').submit()">Delete</button>
                     <div>
@@ -179,91 +225,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    function updateTransactionQuantityLimit(form) {
-        const movement = form.querySelector('[name="movement_type"]').value;
-        const itemSelect = form.querySelector('[name="item_id"]');
-        const quantityInput = form.querySelector('[name="quantity"]');
-        const note = form.querySelector('[data-quantity-limit-note]');
-        const selected = itemSelect.selectedOptions[0];
-
-        if (!quantityInput || !selected) {
-            return;
-        }
-
-        const availableQuantity = Number(selected.getAttribute('data-quantity') || 0);
-        const availableUnit = selected.getAttribute('data-unit') || '';
-        const originalMovement = form.getAttribute('data-original-movement');
-        const originalItemId = form.getAttribute('data-original-item-id');
-        const originalQuantity = Number(form.getAttribute('data-original-quantity') || 0);
-
-        if (movement === 'outbound') {
-            let maxQuantity = availableQuantity;
-
-            if (form.id === 'editTransactionForm' && originalMovement === 'outbound' && originalItemId === selected.value) {
-                maxQuantity += originalQuantity;
-            }
-
-            quantityInput.max = String(maxQuantity);
-            if (quantityInput.value && Number(quantityInput.value) > maxQuantity) {
-                quantityInput.value = maxQuantity > 0 ? String(maxQuantity) : '';
-            }
-            if (note) {
-                note.textContent = `Available stock: ${maxQuantity} ${availableUnit}`.trim();
-            }
-            return;
-        }
-
-        quantityInput.removeAttribute('max');
-        if (note) {
-            note.textContent = 'Inbound purchases are not limited by current stock.';
-        }
-    }
-
-    function refreshTransactionItemOptions(form) {
-        const movement = form.querySelector('[name="movement_type"]').value;
-        const itemSelect = form.querySelector('[name="item_id"]');
-        let firstVisible = null;
-        itemSelect.querySelectorAll('option').forEach((option) => {
-            const category = option.getAttribute('data-category');
-            const visible = movement === 'inbound'
-                ? [
-                    'box_1kg',
-                    'plastic_1kg',
-                    'cooking_oil'
-                ].includes(category)
-                : category === 'finished_goods';
-            option.hidden = !visible;
-            option.disabled = !visible;
-            if (visible && !firstVisible) {
-                firstVisible = option;
-            }
-        });
-        if (!itemSelect.selectedOptions.length || itemSelect.selectedOptions[0].disabled) {
-            itemSelect.value = firstVisible ? firstVisible.value : '';
-        }
-        const selected = itemSelect.selectedOptions[0];
-        const unitInput = form.querySelector('[name="unit"]');
-        if (selected && selected.getAttribute('data-unit')) {
-            unitInput.value = selected.getAttribute('data-unit');
-        } else {
-            unitInput.value = '';
-        }
-        updateTransactionQuantityLimit(form);
-    }
-
-    document.querySelectorAll('#addTransactionModal form, #editTransactionModal form').forEach((form) => {
-        const movement = form.querySelector('[name="movement_type"]');
-        const item = form.querySelector('[name="item_id"]');
-        movement.addEventListener('change', () => refreshTransactionItemOptions(form));
-        item.addEventListener('change', () => {
-            const selected = item.selectedOptions[0];
-            if (selected && selected.getAttribute('data-unit')) {
-                form.querySelector('[name="unit"]').value = selected.getAttribute('data-unit');
-            }
-            updateTransactionQuantityLimit(form);
-        });
-        refreshTransactionItemOptions(form);
-    });
+    // Set default date for Add Modal
+    document.querySelector('#addTransactionModal [name="transaction_date"]').valueAsDate = new Date();
 
     const modal = document.getElementById('editTransactionModal');
     modal.addEventListener('show.bs.modal', function(event) {
@@ -271,19 +234,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const id = button.getAttribute('data-id');
         document.getElementById('editTransactionForm').action = '/transactions/edit/' + id;
         document.getElementById('deleteTransactionForm').action = '/transactions/delete/' + id;
-        document.getElementById('editTransactionForm').setAttribute('data-original-movement', button.getAttribute('data-movement'));
-        document.getElementById('editTransactionForm').setAttribute('data-original-item-id', button.getAttribute('data-item'));
-        document.getElementById('editTransactionForm').setAttribute('data-original-quantity', button.getAttribute('data-quantity'));
-        modal.querySelector('[name="movement_type"]').value = button.getAttribute('data-movement');
-        modal.querySelector('[name="client_name"]').value = button.getAttribute('data-client');
-        modal.querySelector('[name="item_id"]').value = button.getAttribute('data-item');
-        modal.querySelector('[name="quantity"]').value = button.getAttribute('data-quantity');
-        modal.querySelector('[name="unit"]').value = button.getAttribute('data-unit');
-        modal.querySelector('[name="amount"]').value = button.getAttribute('data-amount');
-        modal.querySelector('[name="payment_status"]').value = button.getAttribute('data-status');
-        modal.querySelector('[name="transaction_date"]').value = button.getAttribute('data-date');
-        modal.querySelector('[name="notes"]').value = button.getAttribute('data-notes');
-        refreshTransactionItemOptions(modal.querySelector('form'));
+        
+        document.getElementById('editClient').value = button.getAttribute('data-client');
+        document.getElementById('editQuantity').value = button.getAttribute('data-quantity');
+        document.getElementById('editAmount').value = button.getAttribute('data-amount');
+        document.getElementById('editStatus').value = button.getAttribute('data-status');
+        document.getElementById('editDate').value = button.getAttribute('data-date');
     });
 });
 </script>

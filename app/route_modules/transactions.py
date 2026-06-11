@@ -1,162 +1,143 @@
 from datetime import date, datetime, timedelta
 import csv
 import io
-import secrets
 
 from flask import Response, flash, redirect, render_template, request, session, url_for
 from mysql.connector import Error
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.route_support import *
-
 
 def register_routes(main):
     @main.route("/transactions")
     @login_required
     def transactions():
         txs = []
-        items = []
         monthly_revenue = 0
         pending_payments = 0
         pending_invoices = 0
         status = request.args.get("status", "")
-        movement_type = request.args.get("movement_type", "")
         search = request.args.get("q", "").strip()
         try:
             with db_cursor() as (_, cursor):
-                cursor.execute("SELECT item_id, item_name, category, quantity, unit FROM inventory_items ORDER BY category, item_name")
-                items = cursor.fetchall()
                 cursor.execute(
                     """
-                    SELECT COALESCE(SUM(amount), 0) AS total
-                    FROM client_transactions
-                    WHERE payment_status = 'completed'
-                    AND movement_type = 'outbound'
+                    SELECT COALESCE(SUM(transaction_amount), 0) AS total
+                    FROM tbl_client_transaction
+                    WHERE transaction_status = 'completed'
                     AND MONTH(transaction_date) = MONTH(CURRENT_DATE)
                     AND YEAR(transaction_date) = YEAR(CURRENT_DATE)
                     """
                 )
                 monthly_revenue = float(cursor.fetchone()["total"])
+                
                 cursor.execute(
                     """
-                    SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
-                    FROM client_transactions
-                    WHERE payment_status = 'pending'
+                    SELECT COALESCE(SUM(transaction_amount), 0) AS total, COUNT(*) AS count
+                    FROM tbl_client_transaction
+                    WHERE transaction_status = 'pending'
                     """
                 )
                 res = cursor.fetchone()
                 pending_payments = float(res["total"])
                 pending_invoices = int(res["count"])
+                
                 query = """
-                    SELECT t.*, i.item_name
-                    FROM client_transactions t
-                    LEFT JOIN inventory_items i ON t.item_id = i.item_id
+                    SELECT t.*, u.employee_name
+                    FROM tbl_client_transaction t
+                    LEFT JOIN tbl_user u ON t.user_id = u.user_id
                     WHERE 1=1
                 """
                 params = []
-                if status in PAYMENT_STATUSES:
-                    query += " AND t.payment_status = %s"
+                if status in TRANSACTION_STATUSES:
+                    query += " AND t.transaction_status = %s"
                     params.append(status)
-                if movement_type in MOVEMENT_TYPES:
-                    query += " AND t.movement_type = %s"
-                    params.append(movement_type)
                 if search:
-                    query += " AND (t.client_name LIKE %s OR t.notes LIKE %s OR i.item_name LIKE %s)"
-                    params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+                    query += " AND (t.client_name LIKE %s OR u.employee_name LIKE %s)"
+                    params.extend([f"%{search}%", f"%{search}%"])
                 query += " ORDER BY t.transaction_date DESC, t.transaction_id DESC"
                 cursor.execute(query, params)
                 txs = cursor.fetchall()
         except Error:
             flash("Could not load transactions.", "danger")
+            
         return render_template(
             "transactions.html",
             transactions=txs,
-            items=items,
             monthly_revenue=f"{monthly_revenue:,.2f}",
             pending_payments=f"{pending_payments:,.2f}",
             pending_invoices=pending_invoices,
             current_status=status,
-            current_movement_type=movement_type,
             current_search=search,
         )
-    
     
     @main.route("/transactions/add", methods=["POST"])
     @role_required("admin", "manager")
     def transaction_add():
         return save_transaction()
     
-    
     @main.route("/transactions/edit/<int:transaction_id>", methods=["POST"])
     @role_required("admin", "manager")
     def transaction_edit(transaction_id):
         return save_transaction(transaction_id)
     
-    
+    def apply_transaction_materials(cursor, quantity_sold, multiplier=1):
+        oil_used = quantity_sold * 17.0
+        plastic_used = quantity_sold * 17
+        boxes_used = quantity_sold
+        
+        # Cooking Oil = 1
+        # 17kg Empty Boxes = 2
+        # 1kg Plastic Packs = 3
+        # Ensure we look them up by name to be safe
+        cursor.execute("SELECT material_id FROM tbl_material WHERE material_name = 'Cooking Oil'")
+        oil = cursor.fetchone()
+        if oil: apply_material_delta(cursor, oil['material_id'], -oil_used * multiplier)
+        
+        cursor.execute("SELECT material_id FROM tbl_material WHERE material_name = '17kg Empty Boxes'")
+        box = cursor.fetchone()
+        if box: apply_material_delta(cursor, box['material_id'], -boxes_used * multiplier)
+        
+        cursor.execute("SELECT material_id FROM tbl_material WHERE material_name = '1kg Plastic Packs'")
+        plastic = cursor.fetchone()
+        if plastic: apply_material_delta(cursor, plastic['material_id'], -plastic_used * multiplier)
+
     def save_transaction(transaction_id=None):
         try:
             client_name = request.form.get("client_name", "").strip()
-            movement_type = request.form.get("movement_type", "outbound")
-            item_id = int_form("item_id", "Inventory item", 1)
-            quantity = decimal_form("quantity", "Quantity", 0.01)
-            unit = request.form.get("unit", "").strip() or "Units"
-            boxes_sold = int(quantity)
-            amount = decimal_form("amount", "Amount")
-            payment_status = request.form.get("payment_status", "completed")
+            quantity_sold = int_form("quantity_sold", "Quantity sold")
+            amount = decimal_form("transaction_amount", "Transaction Amount")
+            status = request.form.get("transaction_status", "completed")
             transaction_date = date_form("transaction_date", "Transaction date", required=True)
-            notes = request.form.get("notes", "").strip()
-            if not client_name or payment_status not in PAYMENT_STATUSES or movement_type not in MOVEMENT_TYPES:
+            
+            if not client_name or status not in TRANSACTION_STATUSES:
                 raise ValueError("Please provide valid transaction details.")
+                
+            oil_used_kg = quantity_sold * 17.0
+            plastic_used_units = quantity_sold * 17
+            
             with db_cursor() as (connection, cursor):
-                item = get_inventory_item(cursor, item_id)
-                if movement_type == "inbound" and item["category"] not in RAW_MATERIAL_CATEGORIES:
-                    raise ValueError("Inbound transactions can only buy raw materials.")
-                if movement_type == "outbound" and item["category"] not in SELLABLE_CATEGORIES:
-                    raise ValueError("Outbound transactions can only sell finished oil products.")
-                previous_delivery_status = "pending"
                 if transaction_id:
-                    previous_delivery_status = "received"
                     cursor.execute(
-                        "SELECT movement_type, item_id, quantity FROM client_transactions WHERE transaction_id = %s",
+                        "SELECT quantity_sold, transaction_status FROM tbl_client_transaction WHERE transaction_id = %s",
                         (transaction_id,),
                     )
                     old = cursor.fetchone()
                     if old is None:
                         raise ValueError("Transaction record was not found.")
-                    cursor.execute(
-                        "SELECT status FROM supplier_deliveries WHERE transaction_id = %s",
-                        (transaction_id,),
-                    )
-                    linked_delivery = cursor.fetchone()
-                    if linked_delivery:
-                        previous_delivery_status = linked_delivery["status"]
-                    if previous_delivery_status == "received":
-                        apply_inventory_delta(
-                            cursor,
-                            old["item_id"],
-                            -inventory_delta(old["movement_type"], float(old["quantity"])),
-                        )
+                    
+                    if old["transaction_status"] == "completed":
+                        apply_transaction_materials(cursor, old["quantity_sold"], -1) # Revert old
+                        
                     cursor.execute(
                         """
-                        UPDATE client_transactions
-                        SET movement_type = %s, item_id = %s, quantity = %s, unit = %s,
-                            client_name = %s, boxes_sold = %s, amount = %s,
-                            payment_status = %s, transaction_date = %s, notes = %s
+                        UPDATE tbl_client_transaction
+                        SET client_name = %s, quantity_sold = %s, oil_used_kg = %s,
+                            plastic_used_units = %s, transaction_amount = %s,
+                            transaction_status = %s, transaction_date = %s
                         WHERE transaction_id = %s
                         """,
-                        (
-                            movement_type,
-                            item_id,
-                            quantity,
-                            unit,
-                            client_name,
-                            boxes_sold,
-                            amount,
-                            payment_status,
-                            transaction_date,
-                            notes,
-                            transaction_id,
-                        ),
+                        (client_name, quantity_sold, oil_used_kg, plastic_used_units,
+                         amount, status, transaction_date, transaction_id),
                     )
                     entity_id = transaction_id
                     action = "update"
@@ -164,40 +145,23 @@ def register_routes(main):
                 else:
                     cursor.execute(
                         """
-                        INSERT INTO client_transactions
-                        (movement_type, item_id, quantity, unit, client_name, boxes_sold, amount,
-                         payment_status, transaction_date, notes)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO tbl_client_transaction
+                        (user_id, client_name, quantity_sold, oil_used_kg, plastic_used_units,
+                         transaction_amount, transaction_status, transaction_date)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         """,
-                        (
-                            movement_type,
-                            item_id,
-                            quantity,
-                            unit,
-                            client_name,
-                            boxes_sold,
-                            amount,
-                            payment_status,
-                            transaction_date,
-                            notes,
-                        ),
+                        (current_user_id(), client_name, quantity_sold, oil_used_kg, plastic_used_units,
+                         amount, status, transaction_date),
                     )
                     entity_id = cursor.lastrowid
                     action = "create"
                     message = "Transaction added."
-                sync_delivery_from_transaction(
-                    cursor,
-                    entity_id,
-                    movement_type,
-                    client_name,
-                    item_id,
-                    quantity,
-                    transaction_date,
-                )
-                if previous_delivery_status == "received":
-                    apply_inventory_delta(cursor, item_id, inventory_delta(movement_type, quantity))
+                
+                if status == "completed":
+                    apply_transaction_materials(cursor, quantity_sold, 1) # Apply new
+                    
                 connection.commit()
-            log_audit(action, "client_transaction", entity_id, f"{message} {movement_type}: {client_name}.")
+            log_audit(action, "client_transaction", entity_id, f"{message} Client: {client_name}.")
             flash(message, "success")
         except ValueError as exc:
             flash(str(exc), "danger")
@@ -205,35 +169,20 @@ def register_routes(main):
             flash("Could not save transaction.", "danger")
         return redirect(url_for("main.transactions"))
     
-    
     @main.route("/transactions/delete/<int:transaction_id>", methods=["POST"])
     @role_required("admin", "manager")
     def transaction_delete(transaction_id):
         try:
             with db_cursor() as (connection, cursor):
                 cursor.execute(
-                    "SELECT movement_type, item_id, quantity FROM client_transactions WHERE transaction_id = %s",
+                    "SELECT quantity_sold, transaction_status FROM tbl_client_transaction WHERE transaction_id = %s",
                     (transaction_id,),
                 )
                 old = cursor.fetchone()
-                cursor.execute(
-                    "SELECT status FROM supplier_deliveries WHERE transaction_id = %s",
-                    (transaction_id,),
-                )
-                linked_delivery = cursor.fetchone()
-                if (
-                    old
-                    and old["item_id"] is not None
-                    and old["quantity"] is not None
-                    and (linked_delivery is None or linked_delivery["status"] == "received")
-                ):
-                    apply_inventory_delta(
-                        cursor,
-                        old["item_id"],
-                        -inventory_delta(old["movement_type"], float(old["quantity"])),
-                    )
-                delete_delivery_for_transaction(cursor, transaction_id)
-                cursor.execute("DELETE FROM client_transactions WHERE transaction_id = %s", (transaction_id,))
+                if old and old["transaction_status"] == "completed":
+                    apply_transaction_materials(cursor, old["quantity_sold"], -1) # Revert old
+                    
+                cursor.execute("DELETE FROM tbl_client_transaction WHERE transaction_id = %s", (transaction_id,))
                 connection.commit()
             log_audit("delete", "client_transaction", transaction_id, "Deleted client transaction.")
             flash("Transaction deleted.", "success")

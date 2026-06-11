@@ -1,6 +1,4 @@
 from datetime import date, datetime, timedelta
-import csv
-import io
 import secrets
 
 from flask import Response, flash, redirect, render_template, request, session, url_for
@@ -20,12 +18,12 @@ def register_routes(main):
             try:
                 with db_cursor() as (connection, cursor):
                     if action == "create":
-                        full_name = request.form.get("full_name", "").strip()
+                        employee_name = request.form.get("full_name", "").strip()
                         username = request.form.get("username", "").strip().lower()
                         email = request.form.get("email", "").strip().lower()
                         role = request.form.get("role", "")
                         password = request.form.get("password", "")
-                        if not full_name or not username or not email or role not in ROLES:
+                        if not employee_name or not username or not email or role not in ROLES:
                             raise ValueError("Please provide valid user details.")
                         password_error = validate_password(password)
                         if password_error:
@@ -33,29 +31,28 @@ def register_routes(main):
                         if not is_valid_email(email):
                             raise ValueError("Please enter a valid email address.")
                         cursor.execute(
-                            "SELECT user_id FROM users WHERE username = %s OR email = %s",
+                            "SELECT user_id FROM tbl_user WHERE username = %s OR email = %s",
                             (username, email),
                         )
                         if cursor.fetchone():
                             raise ValueError("Username or email already exists.")
                         cursor.execute(
                             """
-                            INSERT INTO users (full_name, username, email, password_hash, role, is_active)
-                            VALUES (%s, %s, %s, %s, %s, TRUE)
+                            INSERT INTO tbl_user (employee_name, username, email, password, user_role)
+                            VALUES (%s, %s, %s, %s, %s)
                             """,
-                            (full_name, username, email, generate_password_hash(password), role),
+                            (employee_name, username, email, generate_password_hash(password), role),
                         )
                         connection.commit()
                         log_audit("create", "user", cursor.lastrowid, f"Created user {username}.")
                         flash("User account created.", "success")
                     elif action == "update":
                         role = request.form.get("role", "")
-                        is_active = bool(request.form.get("is_active"))
                         if role not in ROLES:
                             raise ValueError("Invalid role selected.")
                         cursor.execute(
-                            "UPDATE users SET role = %s, is_active = %s WHERE user_id = %s",
-                            (role, is_active, user_id),
+                            "UPDATE tbl_user SET user_role = %s WHERE user_id = %s",
+                            (role, user_id),
                         )
                         connection.commit()
                         log_audit("update", "user", user_id, "Updated user permissions.")
@@ -66,7 +63,7 @@ def register_routes(main):
                         if password_error:
                             raise ValueError(password_error)
                         cursor.execute(
-                            "UPDATE users SET password_hash = %s WHERE user_id = %s",
+                            "UPDATE tbl_user SET password = %s WHERE user_id = %s",
                             (generate_password_hash(password), user_id),
                         )
                         connection.commit()
@@ -75,7 +72,7 @@ def register_routes(main):
                     elif action == "delete":
                         if str(current_user_id()) == str(user_id):
                             raise ValueError("You cannot delete your own account.")
-                        cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+                        cursor.execute("DELETE FROM tbl_user WHERE user_id = %s", (user_id,))
                         connection.commit()
                         log_audit("delete", "user", user_id, "Deleted user account.")
                         flash("User account deleted.", "success")
@@ -88,27 +85,29 @@ def register_routes(main):
             return redirect(url_for("main.admin_users"))
     
         users = []
-        audit_logs = []
         try:
             with db_cursor() as (_, cursor):
                 cursor.execute(
                     """
-                    SELECT user_id, full_name, username, email, role, is_active, created_at, last_login_at
-                    FROM users
-                    ORDER BY created_at DESC
+                    SELECT user_id, employee_name, username, email, user_role
+                    FROM tbl_user
+                    ORDER BY user_id DESC
                     """
                 )
-                users = cursor.fetchall()
-                cursor.execute(
-                    """
-                    SELECT a.*, u.username
-                    FROM audit_logs a
-                    LEFT JOIN users u ON a.user_id = u.user_id
-                    ORDER BY a.created_at DESC
-                    LIMIT 10
-                    """
-                )
-                audit_logs = cursor.fetchall()
+                raw_users = cursor.fetchall()
+                # Map for template compatibility
+                for u in raw_users:
+                    users.append({
+                        "user_id": u["user_id"],
+                        "full_name": u["employee_name"],
+                        "username": u["username"],
+                        "email": u["email"],
+                        "role": u["user_role"],
+                        "is_active": True,
+                        "created_at": None,
+                        "last_login_at": None
+                    })
         except Error:
             flash("Could not load users.", "danger")
-        return render_template("admin_users.html", users=users, audit_logs=audit_logs)
+            
+        return render_template("admin_users.html", users=users, audit_logs=[])

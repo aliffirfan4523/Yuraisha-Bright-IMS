@@ -9,10 +9,8 @@
         <form method="GET" action="{{ url_for('main.inventory') }}" class="d-flex gap-2 mb-0">
             <div class="search-bar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="text" name="q" placeholder="Search inventory..." value="{{ current_search }}">
+                <input type="text" name="q" placeholder="Search materials..." value="{{ current_search }}">
             </div>
-            <!-- Keep hidden inputs to preserve filters when searching -->
-            <input type="hidden" name="category" value="{{ current_category }}">
             <input type="hidden" name="status" value="{{ current_status }}">
             <button type="submit" class="icon-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></button>
         </form>
@@ -30,14 +28,7 @@
 <div class="data-table-wrapper">
     <div class="table-header-controls">
         <form method="GET" action="{{ url_for('main.inventory') }}" class="d-flex gap-2 mb-0">
-            <!-- Keep hidden input to preserve search term when filtering -->
             <input type="hidden" name="q" value="{{ current_search }}">
-            <select name="category" class="form-select form-select-sm" style="width: auto; min-width: 140px;" onchange="this.form.submit()">
-                <option value="" {% if not current_category %}selected{% endif %}>All Categories</option>
-                {% for category in category_order %}
-                <option value="{{ category }}" {% if current_category == category %}selected{% endif %}>{{ category_labels.get(category, category | replace('_', ' ') | title) }}</option>
-                {% endfor %}
-            </select>
             <select name="status" class="form-select form-select-sm" style="width: auto; min-width: 140px;" onchange="this.form.submit()">
                 <option value="" {% if not current_status %}selected{% endif %}>All Statuses</option>
                 <option value="in_stock" {% if current_status == 'in_stock' %}selected{% endif %}>In Stock</option>
@@ -46,17 +37,14 @@
             </select>
         </form>
         <div class="d-flex gap-2">
-            <button class="app-btn app-btn-outline py-1 px-3" style="min-height: 38px;" data-bs-toggle="modal" data-bs-target="#addCategoryModal" type="button">+ Add Category</button>
-            <button class="app-btn app-btn-primary py-1 px-3" style="min-height: 38px;" data-bs-toggle="modal" data-bs-target="#addModal" type="button">+ Add Inventory</button>
+            <button class="app-btn app-btn-primary py-1 px-3" style="min-height: 38px;" data-bs-toggle="modal" data-bs-target="#addModal" type="button">+ Add Material</button>
         </div>
     </div>
     <table class="data-table">
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Product Name</th>
-                <th>Category</th>
-                <th>SKU</th>
+                <th>Material Name</th>
                 <th>Qty on Hand</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -66,20 +54,18 @@
             {% if items %}
                 {% for item in items %}
                 <tr>
-                    <td>#{{ item.item_id }}</td>
-                    <td class="fw-bold">{{ item.item_name }}</td>
-                    <td>{{ category_labels.get(item.category, item.category | replace('_', ' ') | title) }}</td>
-                    <td class="text-muted">SKU-{{ item.item_id }}</td>
+                    <td>#{{ item.material_id }}</td>
+                    <td class="fw-bold">{{ item.material_name }}</td>
                     <td>
-                        <form method="POST" action="{{ url_for('main.inventory_quick_update', item_id=item.item_id) }}" class="m-0">
+                        <form method="POST" action="{{ url_for('main.inventory_quick_update', item_id=item.material_id) }}" class="m-0">
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                            <input type="number" step="1" name="quantity" value="{{ item.quantity }}" class="form-control form-control-sm fw-bold" style="width: 85px; padding: 2px 6px; font-size: 14px; background: transparent; border: 1px solid transparent;" onfocus="this.style.borderColor='#cbd5e1'; this.style.background='white';" onblur="this.style.borderColor='transparent'; this.style.background='transparent'; this.form.submit()">
+                            <input type="number" step="0.01" name="quantity" value="{{ item.current_quantity }}" class="form-control form-control-sm fw-bold" style="width: 100px; padding: 2px 6px; font-size: 14px; background: transparent; border: 1px solid transparent;" onfocus="this.style.borderColor='#cbd5e1'; this.style.background='white';" onblur="this.style.borderColor='transparent'; this.style.background='transparent'; this.form.submit()">
                         </form>
                     </td>
                     <td>
-                        {% if item.quantity > item.minimum_stock %}
+                        {% if item.current_quantity > item.low_stock_threshold %}
                         <span class="status-badge status-in-stock">In Stock</span>
-                        {% elif item.quantity > 0 %}
+                        {% elif item.current_quantity > 0 %}
                         <span class="status-badge status-low-stock">Low Stock</span>
                         {% else %}
                         <span class="status-badge status-out-of-stock">Out of Stock</span>
@@ -88,19 +74,17 @@
                     <td>
                         <button class="icon-button" style="color: #64748b;" 
                                 data-bs-toggle="modal" data-bs-target="#editModal"
-                                data-id="{{ item.item_id }}"
-                                data-name="{{ item.item_name }}"
-                                data-category="{{ item.category }}"
-                                data-quantity="{{ item.quantity }}"
-                                data-unit="{{ item.unit }}"
-                                data-minstock="{{ item.minimum_stock }}">
+                                data-id="{{ item.material_id }}"
+                                data-name="{{ item.material_name }}"
+                                data-quantity="{{ item.current_quantity }}"
+                                data-minstock="{{ item.low_stock_threshold }}">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                         </button>
                     </td>
                 </tr>
                 {% endfor %}
             {% else %}
-                <tr><td colspan="7" class="text-center text-muted py-4">No inventory items found.</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4">No materials found.</td></tr>
             {% endif %}
         </tbody>
     </table>
@@ -114,72 +98,32 @@
     </div>
 </div>
 
-<!-- Add Category Modal -->
-<div class="modal fade" id="addCategoryModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
-      <div class="modal-header border-bottom-0 pb-0">
-        <h5 class="modal-title fw-bold">Add Inventory Category</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form method="POST" action="{{ url_for('main.inventory_category_add') }}">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <div class="mb-4">
-            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Category Name</label>
-            <input type="text" name="category_name" class="form-control" placeholder="e.g. Labels, Caps, Spare Parts" required>
-            <div class="text-muted mt-2" style="font-size: 12px;">The category will be available immediately in inventory filters and item forms.</div>
-          </div>
-          <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="app-btn app-btn-primary py-2 px-4 border-0">Save Category</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Add Modal -->
 <div class="modal fade" id="addModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
       <div class="modal-header border-bottom-0 pb-0">
-        <h5 class="modal-title fw-bold">Add Inventory Item</h5>
+        <h5 class="modal-title fw-bold">Add Material</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <form method="POST" action="{{ url_for('main.inventory_add') }}" id="addForm">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
-            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Item Name</label>
+            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Material Name</label>
             <input type="text" name="item_name" class="form-control" required>
           </div>
           <div class="mb-3">
-            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Category</label>
-            <select name="category" class="form-select" required>
-                {% for category in category_order %}
-                <option value="{{ category }}">{{ category_labels.get(category, category | replace('_', ' ') | title) }}</option>
-                {% endfor %}
-            </select>
-          </div>
-          <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted fw-bold" style="font-size: 13px;">Quantity</label>
-                <input type="number" step="1" name="quantity" class="form-control" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted fw-bold" style="font-size: 13px;">Unit</label>
-                <input type="text" name="unit" class="form-control" placeholder="e.g. Kg, Units, Liters" required>
-              </div>
+            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Quantity</label>
+            <input type="number" step="0.01" name="quantity" class="form-control" required>
           </div>
           <div class="mb-4">
-            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Minimum Stock Alert Level</label>
-            <input type="number" step="1" name="minimum_stock" class="form-control" required>
+            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Low Stock Threshold</label>
+            <input type="number" step="0.01" name="minimum_stock" class="form-control" required>
           </div>
           <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="app-btn app-btn-primary py-2 px-4 border-0">Save Item</button>
+            <button type="submit" class="app-btn app-btn-primary py-2 px-4 border-0">Save Material</button>
           </div>
         </form>
       </div>
@@ -192,48 +136,26 @@
   <div class="modal-dialog">
     <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
       <div class="modal-header border-bottom-0 pb-0">
-        <h5 class="modal-title fw-bold">Edit Item</h5>
+        <h5 class="modal-title fw-bold">Edit Material</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <form method="POST" id="editForm">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
-            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Item Name</label>
+            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Material Name</label>
             <input type="text" name="item_name" id="editItemName" class="form-control" required>
           </div>
           <div class="mb-3">
-            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Category</label>
-            <select name="category" id="editCategory" class="form-select" required>
-                {% for category in category_order %}
-                <option value="{{ category }}">{{ category_labels.get(category, category | replace('_', ' ') | title) }}</option>
-                {% endfor %}
-            </select>
-          </div>
-          <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted fw-bold" style="font-size: 13px;">Quantity</label>
-                <input type="number" step="1" name="quantity" id="editQuantity" class="form-control" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted fw-bold" style="font-size: 13px;">Unit</label>
-                <input type="text" name="unit" id="editUnit" class="form-control" required>
-              </div>
+            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Quantity</label>
+            <input type="number" step="0.01" name="quantity" id="editQuantity" class="form-control" required>
           </div>
           <div class="mb-4">
-            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Minimum Stock Alert Level</label>
-            <input type="number" step="1" name="minimum_stock" id="editMinStock" class="form-control" required>
-          </div>
-          <div class="mb-4 p-3" style="background: var(--panel); border: 1px solid var(--line); border-radius: 8px;">
-            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Defect Quantity</label>
-            <div class="d-flex gap-2">
-                <input type="number" step="0.01" min="0.01" name="defect_quantity" id="defectQuantity" class="form-control" placeholder="Qty">
-                <input type="text" name="defect_reason" id="defectReason" class="form-control" placeholder="Reason">
-                <button type="button" class="btn btn-warning" onclick="submitDefectForm()">Mark Defect</button>
-            </div>
+            <label class="form-label text-muted fw-bold" style="font-size: 13px;">Low Stock Threshold</label>
+            <input type="number" step="0.01" name="minimum_stock" id="editMinStock" class="form-control" required>
           </div>
           <div class="d-flex justify-content-between align-items-center">
-            <button type="button" class="btn btn-outline-danger" onclick="document.getElementById('deleteForm').submit()">Delete Item</button>
+            <button type="button" class="btn btn-outline-danger" onclick="document.getElementById('deleteForm').submit()">Delete Material</button>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="app-btn app-btn-primary py-2 px-4 border-0">Save Changes</button>
@@ -243,11 +165,6 @@
         <!-- Hidden Delete Form -->
         <form method="POST" id="deleteForm" style="display: none;">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        </form>
-        <form method="POST" id="defectForm" style="display: none;">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="defect_quantity" id="defectFormQuantity">
-          <input type="hidden" name="defect_reason" id="defectFormReason">
         </form>
       </div>
     </div>
@@ -262,34 +179,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const button = event.relatedTarget;
             const itemId = button.getAttribute('data-id');
             const name = button.getAttribute('data-name');
-            const category = button.getAttribute('data-category');
             const quantity = button.getAttribute('data-quantity');
-            const unit = button.getAttribute('data-unit');
             const minstock = button.getAttribute('data-minstock');
             
             document.getElementById('editItemName').value = name;
-            document.getElementById('editCategory').value = category;
             document.getElementById('editQuantity').value = quantity;
-            document.getElementById('editUnit').value = unit;
             document.getElementById('editMinStock').value = minstock;
             
             document.getElementById('editForm').action = "/inventory/edit/" + itemId;
             document.getElementById('deleteForm').action = "/inventory/delete/" + itemId;
-            document.getElementById('defectForm').action = "/inventory/defect/" + itemId;
         });
     }
 });
-
-function submitDefectForm() {
-    const quantity = document.getElementById('defectQuantity').value;
-    if (!quantity || Number(quantity) <= 0) {
-        alert('Enter a valid defect quantity.');
-        return;
-    }
-    document.getElementById('defectFormQuantity').value = quantity;
-    document.getElementById('defectFormReason').value = document.getElementById('defectReason').value;
-    document.getElementById('defectForm').submit();
-}
 </script>
 
 {% endblock %}

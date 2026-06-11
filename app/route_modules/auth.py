@@ -1,6 +1,4 @@
 from datetime import date, datetime, timedelta
-import csv
-import io
 import secrets
 
 from flask import Response, flash, redirect, render_template, request, session, url_for
@@ -9,11 +7,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.route_support import *
 
-
 def register_routes(main):
     def users_count(cursor):
-        cursor.execute("SELECT COUNT(*) AS count FROM users")
+        cursor.execute("SELECT COUNT(*) AS count FROM tbl_user")
         return cursor.fetchone()["count"]
+
     @main.route("/login", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
@@ -33,15 +31,15 @@ def register_routes(main):
                 with db_cursor() as (connection, cursor):
                     cursor.execute(
                         """
-                        SELECT user_id, full_name, username, email, password_hash, role, is_active
-                        FROM users
+                        SELECT user_id, employee_name, username, email, password, user_role
+                        FROM tbl_user
                         WHERE username = %s OR email = %s
                         """,
                         (login_id, login_id),
                     )
                     user = cursor.fetchone()
-                    valid = user is not None and user["is_active"] and check_password_hash(
-                        user["password_hash"], password
+                    valid = user is not None and check_password_hash(
+                        user["password"], password
                     )
                     if not valid:
                         failures = int(session.get("login_failures", 0)) + 1
@@ -56,15 +54,10 @@ def register_routes(main):
                     session.clear()
                     session.permanent = bool(request.form.get("remember"))
                     session["user_id"] = user["user_id"]
-                    session["user_name"] = user["full_name"]
+                    session["user_name"] = user["employee_name"]
                     session["username"] = user["username"]
-                    session["user_role"] = user["role"]
+                    session["user_role"] = user["user_role"]
                     session["_csrf_token"] = secrets.token_urlsafe(32)
-                    cursor.execute(
-                        "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE user_id = %s",
-                        (user["user_id"],),
-                    )
-                    connection.commit()
             except Error:
                 flash("Could not connect to the database. Please check your MySQL setup.", "danger")
                 return redirect(url_for("main.login"))
@@ -86,7 +79,7 @@ def register_routes(main):
             first_account = False
     
         if request.method == "POST":
-            full_name = request.form.get("full_name", "").strip()
+            employee_name = request.form.get("full_name", "").strip()
             username = request.form.get("username", "").strip().lower()
             email = request.form.get("email", "").strip().lower()
             requested_role = request.form.get("role", "manager")
@@ -94,7 +87,7 @@ def register_routes(main):
             password = request.form.get("password", "")
             confirm_password = request.form.get("confirm_password", "")
     
-            if not full_name or not username or not email or not role or not password or not confirm_password:
+            if not employee_name or not username or not email or not role or not password or not confirm_password:
                 flash("Please fill in all fields.", "danger")
                 return redirect(url_for("main.register"))
             if role not in ROLES:
@@ -114,7 +107,7 @@ def register_routes(main):
             try:
                 with db_cursor() as (connection, cursor):
                     cursor.execute(
-                        "SELECT user_id FROM users WHERE username = %s OR email = %s",
+                        "SELECT user_id FROM tbl_user WHERE username = %s OR email = %s",
                         (username, email),
                     )
                     if cursor.fetchone():
@@ -122,10 +115,10 @@ def register_routes(main):
                         return redirect(url_for("main.register"))
                     cursor.execute(
                         """
-                        INSERT INTO users (full_name, username, email, password_hash, role, is_active)
-                        VALUES (%s, %s, %s, %s, %s, TRUE)
+                        INSERT INTO tbl_user (employee_name, username, email, password, user_role)
+                        VALUES (%s, %s, %s, %s, %s)
                         """,
-                        (full_name, username, email, generate_password_hash(password), role),
+                        (employee_name, username, email, generate_password_hash(password), role),
                     )
                     connection.commit()
             except Error:
@@ -146,7 +139,6 @@ def register_routes(main):
         flash("You have been logged out.", "info")
         return redirect(url_for("main.login"))
 
-
     @main.route("/profile", methods=["GET", "POST"])
     @login_required
     def profile():
@@ -155,8 +147,8 @@ def register_routes(main):
             with db_cursor() as (connection, cursor):
                 cursor.execute(
                     """
-                    SELECT user_id, full_name, username, email, password_hash, role, last_login_at, created_at
-                    FROM users
+                    SELECT user_id, employee_name, username, email, password, user_role
+                    FROM tbl_user
                     WHERE user_id = %s
                     """,
                     (current_user_id(),),
@@ -170,17 +162,17 @@ def register_routes(main):
                 if request.method == "POST":
                     action = request.form.get("action", "")
                     if action == "update_name":
-                        full_name = request.form.get("full_name", "").strip()
-                        if not full_name:
+                        employee_name = request.form.get("full_name", "").strip()
+                        if not employee_name:
                             raise ValueError("Full name is required.")
-                        if len(full_name) > 100:
+                        if len(employee_name) > 100:
                             raise ValueError("Full name is too long.")
                         cursor.execute(
-                            "UPDATE users SET full_name = %s WHERE user_id = %s",
-                            (full_name, current_user_id()),
+                            "UPDATE tbl_user SET employee_name = %s WHERE user_id = %s",
+                            (employee_name, current_user_id()),
                         )
                         connection.commit()
-                        session["user_name"] = full_name
+                        session["user_name"] = employee_name
                         log_audit("update_profile", "user", current_user_id(), "Updated profile name.")
                         flash("Profile name updated.", "success")
                         return redirect(url_for("main.profile"))
@@ -189,7 +181,7 @@ def register_routes(main):
                         current_password = request.form.get("current_password", "")
                         new_password = request.form.get("new_password", "")
                         confirm_password = request.form.get("confirm_password", "")
-                        if not check_password_hash(user["password_hash"], current_password):
+                        if not check_password_hash(user["password"], current_password):
                             raise ValueError("Current password is incorrect.")
                         password_error = validate_password(new_password)
                         if password_error:
@@ -197,7 +189,7 @@ def register_routes(main):
                         if new_password != confirm_password:
                             raise ValueError("New passwords do not match.")
                         cursor.execute(
-                            "UPDATE users SET password_hash = %s WHERE user_id = %s",
+                            "UPDATE tbl_user SET password = %s WHERE user_id = %s",
                             (generate_password_hash(new_password), current_user_id()),
                         )
                         connection.commit()
@@ -213,5 +205,8 @@ def register_routes(main):
             flash("Could not update profile. Please check your MySQL setup.", "danger")
             return redirect(url_for("main.dashboard"))
 
-        return render_template("profile.html", user=user)
-    
+        # Remap user for the template compatibility
+        user_compat = dict(user)
+        user_compat['full_name'] = user['employee_name']
+        user_compat['role'] = user['user_role']
+        return render_template("profile.html", user=user_compat)

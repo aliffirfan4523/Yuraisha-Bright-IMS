@@ -55,8 +55,6 @@
                     <tr>
                         <th>User</th>
                         <th>Role</th>
-                        <th>Status</th>
-                        <th>Last Login</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -69,12 +67,6 @@
                         </td>
                         <td>{{ user.role|title }}</td>
                         <td>
-                            <span class="status-badge {% if user.is_active %}status-in-stock{% else %}status-out-of-stock{% endif %}">
-                                {{ "Active" if user.is_active else "Inactive" }}
-                            </span>
-                        </td>
-                        <td class="text-muted">{{ user.last_login_at or "Never" }}</td>
-                        <td>
                             <form method="POST" action="{{ url_for('main.admin_users') }}" class="inline-admin-form">
                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="action" value="update">
@@ -83,10 +75,6 @@
                                     <option value="manager" {% if user.role == 'manager' %}selected{% endif %}>Manager</option>
                                     <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
                                 </select>
-                                <label class="check-row compact-check mb-2">
-                                    <input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}>
-                                    <span>Active account</span>
-                                </label>
                                 <button class="btn btn-sm btn-light border" type="submit">Save</button>
                             </form>
                             <form method="POST" action="{{ url_for('main.admin_users') }}" class="inline-admin-form mt-2">
@@ -107,41 +95,11 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="text-center text-muted py-4">No users found.</td></tr>
+                    <tr><td colspan="3" class="text-center text-muted py-4">No users found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-</div>
-
-<div class="data-table-wrapper">
-    <div class="table-header-controls">
-        <h5 class="m-0 fw-bold">Recent Security Audit</h5>
-    </div>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>Entity</th>
-                <th>Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in audit_logs %}
-            <tr>
-                <td class="text-muted">{{ log.created_at }}</td>
-                <td>{{ log.username or "System" }}</td>
-                <td>{{ log.action|replace("_", " ")|title }}</td>
-                <td>{{ log.entity_type|replace("_", " ")|title }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
-                <td class="text-muted">{{ log.details }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" class="text-center text-muted py-4">No audit activity yet.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
 </div>
 {% endblock %}

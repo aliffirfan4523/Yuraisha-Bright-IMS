@@ -1,14 +1,13 @@
 from datetime import date, datetime, timedelta
 import csv
 import io
-import secrets
 
 from flask import Response, flash, redirect, render_template, request, session, url_for
 from mysql.connector import Error
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.route_support import *
 
+REPORT_TYPES = {"inventory", "delivery", "transaction"}
 
 def register_routes(main):
     def report_date_filters():
@@ -19,81 +18,60 @@ def register_routes(main):
         end = request.args.get("end", "")
         return report_type, start, end
     
-    
     def build_report(report_type, start="", end=""):
         rows = []
         columns = []
         title = ""
         with db_cursor() as (connection, cursor):
-            refresh_system_alerts(cursor, connection)
             if report_type == "inventory":
                 title = "Inventory Report"
-                columns = ["ID", "Item", "Category", "Quantity", "Unit", "Minimum Stock", "Updated"]
+                columns = ["ID", "Material Name", "Current Quantity", "Low Stock Threshold", "Last Updated"]
                 cursor.execute(
                     """
-                    SELECT item_id, item_name, category, quantity, unit, minimum_stock, updated_at
-                    FROM inventory_items
-                    ORDER BY category, item_name
+                    SELECT material_id, material_name, current_quantity, low_stock_threshold, last_updated
+                    FROM tbl_material
+                    ORDER BY material_name
                     """
                 )
                 rows = [
                     [
-                        row["item_id"],
-                        row["item_name"],
-                        row["category"],
-                        row["quantity"],
-                        row["unit"],
-                        row["minimum_stock"],
-                        row["updated_at"],
+                        row["material_id"],
+                        row["material_name"],
+                        row["current_quantity"],
+                        row["low_stock_threshold"],
+                        row["last_updated"],
                     ]
                     for row in cursor.fetchall()
                 ]
-            elif report_type == "stock_summary":
-                title = "Stock Summary"
-                columns = ["Category", "Total Quantity", "Low Stock Items", "Items"]
-                cursor.execute(
-                    """
-                    SELECT category, COALESCE(SUM(quantity), 0) AS total_quantity,
-                           SUM(CASE WHEN quantity <= minimum_stock THEN 1 ELSE 0 END) AS low_stock_items,
-                           COUNT(*) AS items
-                    FROM inventory_items
-                    GROUP BY category
-                    ORDER BY category
-                    """
-                )
-                rows = [
-                    [row["category"], row["total_quantity"], row["low_stock_items"], row["items"]]
-                    for row in cursor.fetchall()
-                ]
-            elif report_type == "supplier":
-                title = "Supplier Report"
-                columns = ["Delivery ID", "Type", "Supplier / Customer", "Item", "Quantity", "Expected", "Received", "Status"]
+            elif report_type == "delivery":
+                title = "Delivery Log Report"
+                columns = ["Delivery ID", "Supplier", "Material", "Quantity", "Expected Arrival", "Actual Arrival", "Status"]
                 query = """
-                    SELECT d.delivery_id, d.movement_type, d.supplier_name, i.item_name, d.quantity,
-                           d.expected_date, d.received_date, d.status
-                    FROM supplier_deliveries d
-                    LEFT JOIN inventory_items i ON d.item_id = i.item_id
+                    SELECT d.delivery_id, s.supplier_name, m.material_name, d.quantity_delivered,
+                           d.expected_arrival, d.actual_arrival, d.shipping_status
+                    FROM tbl_delivery_log d
+                    LEFT JOIN tbl_supplier s ON d.supplier_id = s.supplier_id
+                    LEFT JOIN tbl_material m ON d.material_id = m.material_id
                     WHERE 1=1
                 """
                 params = []
                 if start:
-                    query += " AND d.expected_date >= %s"
+                    query += " AND d.expected_arrival >= %s"
                     params.append(start)
                 if end:
-                    query += " AND d.expected_date <= %s"
+                    query += " AND d.expected_arrival <= %s"
                     params.append(end)
-                query += " ORDER BY d.expected_date DESC"
+                query += " ORDER BY d.expected_arrival DESC"
                 cursor.execute(query, params)
                 rows = [
                     [
                         row["delivery_id"],
-                        row["movement_type"],
                         row["supplier_name"],
-                        row["item_name"],
-                        row["quantity"],
-                        row["expected_date"],
-                        row["received_date"],
-                        row["status"],
+                        row["material_name"],
+                        row["quantity_delivered"],
+                        row["expected_arrival"],
+                        row["actual_arrival"],
+                        row["shipping_status"],
                     ]
                     for row in cursor.fetchall()
                 ]
@@ -101,19 +79,18 @@ def register_routes(main):
                 title = "Transaction Report"
                 columns = [
                     "Transaction ID",
-                    "Type",
-                    "Supplier / Customer",
-                    "Item",
-                    "Quantity",
+                    "Client Name",
+                    "Quantity Sold (Boxes)",
                     "Amount",
-                    "Payment Status",
-                    "Date",
-                    "Notes",
+                    "Transaction Status",
+                    "Transaction Date",
+                    "Recorded By"
                 ]
                 query = """
-                    SELECT t.*, i.item_name
-                    FROM client_transactions t
-                    LEFT JOIN inventory_items i ON t.item_id = i.item_id
+                    SELECT t.transaction_id, t.client_name, t.quantity_sold, t.transaction_amount,
+                           t.transaction_status, t.transaction_date, u.employee_name
+                    FROM tbl_client_transaction t
+                    LEFT JOIN tbl_user u ON t.user_id = u.user_id
                     WHERE 1=1
                 """
                 params = []
@@ -128,19 +105,16 @@ def register_routes(main):
                 rows = [
                     [
                         row["transaction_id"],
-                        row["movement_type"],
                         row["client_name"],
-                        row["item_name"],
-                        f"{row['quantity']} {row['unit']}",
-                        row["amount"],
-                        row["payment_status"],
+                        row["quantity_sold"],
+                        row["transaction_amount"],
+                        row["transaction_status"],
                         row["transaction_date"],
-                        row["notes"],
+                        row["employee_name"],
                     ]
                     for row in cursor.fetchall()
                 ]
         return title, columns, rows
-    
     
     @main.route("/reports")
     @role_required("admin", "manager")
@@ -162,7 +136,6 @@ def register_routes(main):
             start=start,
             end=end,
         )
-    
     
     @main.route("/reports/export.csv")
     @role_required("admin", "manager")

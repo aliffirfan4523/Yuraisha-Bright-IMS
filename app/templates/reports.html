@@ -19,7 +19,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4 pb-2">
     <div>
         <h2 class="fw-bold mb-1" style="font-size: 28px;">{{ report_title }}</h2>
-        <p class="text-muted mb-0">Generate inventory, stock summary, supplier, and transaction reports.</p>
+        <p class="text-muted mb-0">Generate inventory, delivery, and transaction reports.</p>
     </div>
     <a class="app-btn app-btn-primary py-1 px-3" href="{{ url_for('main.reports_export', type=report_type, start=start, end=end) }}">Export CSV</a>
 </div>
@@ -31,8 +31,7 @@
                 <label class="form-label fw-bold">Report Type</label>
                 <select class="form-select" name="type">
                     <option value="inventory" {% if report_type == 'inventory' %}selected{% endif %}>Inventory Report</option>
-                    <option value="stock_summary" {% if report_type == 'stock_summary' %}selected{% endif %}>Stock Summary</option>
-                    <option value="supplier" {% if report_type == 'supplier' %}selected{% endif %}>Supplier Report</option>
+                    <option value="delivery" {% if report_type == 'delivery' %}selected{% endif %}>Delivery Log Report</option>
                     <option value="transaction" {% if report_type == 'transaction' %}selected{% endif %}>Transaction Report</option>
                 </select>
             </div>

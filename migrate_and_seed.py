@@ -1,450 +1,150 @@
 import os
-
 import mysql.connector
 from dotenv import load_dotenv
-from mysql.connector import Error
-
-
-def execute_ignore(cursor, sql, duplicate_codes=(1060, 1061)):
-    try:
-        cursor.execute(sql)
-    except Error as exc:
-        if exc.errno not in duplicate_codes:
-            raise
-
+from werkzeug.security import generate_password_hash
 
 def main():
     load_dotenv()
-    connection = None
-    cursor = None
-
     try:
         connection = mysql.connector.connect(
             host=os.getenv("MYSQL_HOST", "localhost"),
             port=int(os.getenv("MYSQL_PORT", "3306")),
             user=os.getenv("MYSQL_USER", "root"),
             password=os.getenv("MYSQL_PASSWORD", ""),
-            database=os.getenv("MYSQL_DATABASE", "yuraisha_inventory"),
+            database=os.getenv("MYSQL_DATABASE", "yuraisha_inventory")
         )
         cursor = connection.cursor()
 
-        print("Applying migration-safe schema updates...")
-        execute_ignore(cursor, "ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;")
-        execute_ignore(cursor, "ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP NULL;")
-        cursor.execute("SHOW COLUMNS FROM inventory_items LIKE 'category'")
-        category_column = cursor.fetchone()
-        category_type = category_column[1].lower() if category_column else ""
-        if "enum" in category_type:
-            cursor.execute(
-                """
-                ALTER TABLE inventory_items
-                MODIFY category ENUM(
-                    'box', 'plastic', 'bottle',
-                    'box_1kg',
-                    'plastic_1kg',
-                    'cooking_oil', 'finished_goods', 'defect'
-                ) NOT NULL
-                """
-            )
-        cursor.execute(
-            """
-            UPDATE inventory_items
-            SET category = CASE
-                WHEN category = 'box' THEN 'box_1kg'
-                WHEN category = 'plastic' THEN 'plastic_1kg'
-                ELSE category
-            END
-            WHERE category IN ('box', 'plastic', 'bottle')
-            """
-        )
-        if "enum" in category_type:
-            cursor.execute(
-                """
-                ALTER TABLE inventory_items
-                MODIFY category ENUM(
-                    'box_1kg',
-                    'plastic_1kg',
-                    'cooking_oil', 'finished_goods', 'defect'
-                ) NOT NULL
-                """
-            )
-        cursor.execute("ALTER TABLE inventory_items MODIFY category VARCHAR(50) NOT NULL")
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS inventory_categories (
-                category_key VARCHAR(50) PRIMARY KEY,
-                category_label VARCHAR(100) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        cursor.execute(
-            """
-            INSERT INTO inventory_categories (category_key, category_label) VALUES
-                ('plastic_1kg', '1kg Plastic Packs'),
-                ('box_1kg', '1kg Boxes'),
-                ('cooking_oil', 'Cooking Oil'),
-                ('finished_goods', 'Finished Goods'),
-                ('defect', 'Defect Stock')
-            ON DUPLICATE KEY UPDATE category_label = VALUES(category_label)
-            """
-        )
-        cursor.execute(
-            """
-            INSERT INTO inventory_categories (category_key, category_label)
-            SELECT DISTINCT category, REPLACE(category, '_', ' ')
-            FROM inventory_items
-            WHERE category IS NOT NULL
-            ON DUPLICATE KEY UPDATE category_key = category_key
-            """
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE client_transactions ADD COLUMN amount DECIMAL(10,2) NOT NULL DEFAULT 0.00;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE client_transactions ADD COLUMN payment_status ENUM('pending', 'completed', 'failed') DEFAULT 'completed';",
-        )
-        execute_ignore(cursor, "ALTER TABLE client_transactions ADD COLUMN notes TEXT;", duplicate_codes=(1060,))
-        execute_ignore(
-            cursor,
-            "ALTER TABLE supplier_deliveries ADD COLUMN movement_type ENUM('inbound', 'outbound') NOT NULL DEFAULT 'inbound' AFTER delivery_id;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE supplier_deliveries ADD COLUMN transaction_id INT NULL UNIQUE AFTER item_id;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE client_transactions ADD COLUMN movement_type ENUM('inbound', 'outbound') NOT NULL DEFAULT 'outbound' AFTER transaction_id;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE client_transactions ADD COLUMN item_id INT NULL AFTER movement_type;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE client_transactions ADD COLUMN quantity DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER item_id;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE client_transactions ADD COLUMN unit VARCHAR(20) NOT NULL DEFAULT 'Units' AFTER quantity;",
-        )
-        cursor.execute(
-            """
-            UPDATE client_transactions
-            SET quantity = boxes_sold,
-                unit = CASE WHEN unit = 'Units' THEN 'Boxes' ELSE unit END
-            WHERE quantity = 0
-            """
-        )
-        cursor.execute(
-            """
-            UPDATE client_transactions
-            SET item_id = (
-                SELECT item_id
-                FROM inventory_items
-                WHERE category = 'finished_goods'
-                ORDER BY item_id
-                LIMIT 1
-            )
-            WHERE item_id IS NULL
-            """
-        )
-        try:
-            cursor.execute(
-                "ALTER TABLE client_transactions ADD CONSTRAINT fk_transactions_item FOREIGN KEY (item_id) REFERENCES inventory_items(item_id) ON DELETE SET NULL;"
-            )
-        except Error as exc:
-            if exc.errno not in (1005, 1022, 1215, 1826):
-                raise
-        try:
-            cursor.execute(
-                "ALTER TABLE supplier_deliveries ADD CONSTRAINT fk_deliveries_transaction FOREIGN KEY (transaction_id) REFERENCES client_transactions(transaction_id) ON DELETE CASCADE;"
-            )
-        except Error as exc:
-            if exc.errno not in (1005, 1022, 1215, 1826):
-                raise
-        execute_ignore(
-            cursor,
-            "ALTER TABLE usage_calculations ADD COLUMN box_size_kg DECIMAL(10,2) NOT NULL DEFAULT 1.00;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE usage_calculations ADD COLUMN units_per_box INT NOT NULL DEFAULT 20;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE usage_calculations ADD COLUMN oil_ratio DECIMAL(10,2) NOT NULL DEFAULT 1.00;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE usage_calculations ADD COLUMN plastic_ratio DECIMAL(10,2) NOT NULL DEFAULT 0.10;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE usage_calculations ADD COLUMN available_boxes DECIMAL(10,2) NOT NULL DEFAULT 0;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE usage_calculations ADD COLUMN remaining_boxes DECIMAL(10,2) NOT NULL DEFAULT 0;",
-        )
-        execute_ignore(
-            cursor,
-            "ALTER TABLE usage_calculations ADD COLUMN record_type VARCHAR(20) NOT NULL DEFAULT 'estimate';",
-        )
+        print("Dropping old tables...")
+        tables_to_drop = [
+            "audit_logs",
+            "client_transactions",
+            "supplier_deliveries",
+            "usage_calculations",
+            "reports",
+            "notifications",
+            "inventory_categories",
+            "inventory_items",
+            "users",
+            "tbl_delivery_log",
+            "tbl_client_transaction",
+            "tbl_material",
+            "tbl_supplier",
+            "tbl_user"
+        ]
+        
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+        for table in tables_to_drop:
+            cursor.execute(f"DROP TABLE IF EXISTS {table};")
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
 
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS audit_logs (
-                audit_id INT AUTO_INCREMENT PRIMARY KEY,
+        print("Applying new schema...")
+        cursor.execute("""
+            CREATE TABLE tbl_user (
+                user_id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(50) NOT NULL UNIQUE,
+                password VARCHAR(255) NOT NULL,
+                employee_name VARCHAR(100) NOT NULL,
+                email VARCHAR(100) NOT NULL,
+                user_role VARCHAR(20) NOT NULL
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE tbl_material (
+                material_id INT AUTO_INCREMENT PRIMARY KEY,
+                material_name VARCHAR(50) NOT NULL,
+                current_quantity DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                low_stock_threshold DECIMAL(10,0) NOT NULL DEFAULT 0,
+                last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE tbl_supplier (
+                supplier_id INT AUTO_INCREMENT PRIMARY KEY,
+                supplier_name VARCHAR(100) NOT NULL,
+                contact_number VARCHAR(20),
+                email VARCHAR(100)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE tbl_delivery_log (
+                delivery_id INT AUTO_INCREMENT PRIMARY KEY,
+                supplier_id INT,
+                material_id INT,
                 user_id INT,
-                action VARCHAR(50) NOT NULL,
-                entity_type VARCHAR(50) NOT NULL,
-                entity_id INT NULL,
-                details TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+                tracking_number INT,
+                quantity_delivered INT NOT NULL,
+                expected_arrival DATETIME,
+                actual_arrival DATETIME,
+                shipping_status VARCHAR(20),
+                FOREIGN KEY (supplier_id) REFERENCES tbl_supplier(supplier_id) ON DELETE SET NULL,
+                FOREIGN KEY (material_id) REFERENCES tbl_material(material_id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES tbl_user(user_id) ON DELETE SET NULL
             )
-            """
-        )
+        """)
 
-        print("Removing duplicate notifications...")
-        cursor.execute(
-            """
-            DELETE newer
-            FROM notifications newer
-            INNER JOIN notifications older
-                ON newer.title = older.title
-                AND newer.type = older.type
-                AND newer.notification_id > older.notification_id
-            """
-        )
-
-        print("Cleaning up old 3kg, 5kg, and 10kg data...")
-        # 1. Delete supplier deliveries related to the 3kg, 5kg, 10kg items
-        cursor.execute(
-            """
-            DELETE FROM supplier_deliveries 
-            WHERE item_id IN (
-                SELECT item_id FROM inventory_items 
-                WHERE category IN ('plastic_10kg', 'bottle_3kg', 'bottle_5kg', 'box_3kg', 'box_5kg', 'box_10kg')
-                   OR item_name LIKE '%3kg%' 
-                   OR item_name LIKE '%5kg%' 
-                   OR item_name LIKE '%10kg%'
+        cursor.execute("""
+            CREATE TABLE tbl_client_transaction (
+                transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT,
+                client_name VARCHAR(100) NOT NULL,
+                quantity_sold INT NOT NULL,
+                oil_used_kg DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                plastic_used_units INT NOT NULL DEFAULT 0,
+                transaction_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                transaction_status VARCHAR(20),
+                transaction_date DATE NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES tbl_user(user_id) ON DELETE SET NULL
             )
-            """
-        )
-        # 2. Delete client transactions related to the 3kg, 5kg, 10kg items
-        cursor.execute(
-            """
-            DELETE FROM client_transactions
-            WHERE item_id IN (
-                SELECT item_id FROM inventory_items 
-                WHERE category IN ('plastic_10kg', 'bottle_3kg', 'bottle_5kg', 'box_3kg', 'box_5kg', 'box_10kg')
-                   OR item_name LIKE '%3kg%' 
-                   OR item_name LIKE '%5kg%' 
-                   OR item_name LIKE '%10kg%'
-            )
-            """
-        )
-        # 3. Delete notifications related to low stock or delayed delivery of these items
-        cursor.execute(
-            """
-            DELETE FROM notifications
-            WHERE title LIKE '%3kg%' OR title LIKE '%5kg%' OR title LIKE '%10kg%'
-               OR message LIKE '%3kg%' OR message LIKE '%5kg%' OR message LIKE '%10kg%'
-            """
-        )
-        # 4. Delete the inventory items
-        cursor.execute(
-            """
-            DELETE FROM inventory_items 
-            WHERE category IN ('plastic_10kg', 'bottle_3kg', 'bottle_5kg', 'box_3kg', 'box_5kg', 'box_10kg')
-               OR item_name LIKE '%3kg%' 
-               OR item_name LIKE '%5kg%' 
-               OR item_name LIKE '%10kg%'
-            """
-        )
-        # 5. Delete the inventory categories
-        cursor.execute(
-            """
-            DELETE FROM inventory_categories 
-            WHERE category_key IN ('plastic_10kg', 'bottle_3kg', 'bottle_5kg', 'box_3kg', 'box_5kg', 'box_10kg')
-            """
-        )
+        """)
 
-        print("Linking transactions to tracking records...")
+        print("Seeding data...")
+        # Users
         cursor.execute(
             """
-            UPDATE supplier_deliveries d
-            JOIN (
-                SELECT t.transaction_id, MIN(d.delivery_id) AS delivery_id
-                FROM client_transactions t
-                JOIN supplier_deliveries d
-                    ON d.transaction_id IS NULL
-                    AND d.movement_type = t.movement_type
-                    AND d.supplier_name = t.client_name
-                    AND d.item_id = t.item_id
-                    AND d.quantity = t.quantity
-                    AND (
-                        d.received_date = t.transaction_date
-                        OR d.expected_date = t.transaction_date
-                    )
-                LEFT JOIN supplier_deliveries existing
-                    ON existing.transaction_id = t.transaction_id
-                WHERE existing.delivery_id IS NULL
-                GROUP BY t.transaction_id
-            ) matched ON matched.delivery_id = d.delivery_id
-            SET d.transaction_id = matched.transaction_id
-            WHERE d.transaction_id IS NULL
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM supplier_deliveries existing
-                  WHERE existing.transaction_id = matched.transaction_id
-            )
-            """
+            INSERT INTO tbl_user (username, password, employee_name, email, user_role)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            ("admin", generate_password_hash("Admin123"), "Admin User", "admin@yuraishabright.com", "admin")
         )
-        cursor.execute(
-            """
-            INSERT INTO supplier_deliveries
-            (movement_type, supplier_name, item_id, transaction_id, quantity, expected_date, received_date, status)
-            SELECT
-                t.movement_type,
-                t.client_name,
-                t.item_id,
-                t.transaction_id,
-                t.quantity,
-                t.transaction_date,
-                t.transaction_date,
-                'received'
-            FROM client_transactions t
-            WHERE t.item_id IS NOT NULL
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM supplier_deliveries d
-                  WHERE d.transaction_id = t.transaction_id
-              )
-            """
-        )
-        cursor.execute(
-            """
-            UPDATE supplier_deliveries d
-            JOIN client_transactions t ON d.transaction_id = t.transaction_id
-            SET d.movement_type = t.movement_type,
-                d.supplier_name = t.client_name,
-                d.item_id = t.item_id,
-                d.quantity = t.quantity,
-                d.expected_date = t.transaction_date,
-                d.received_date = t.transaction_date,
-                d.status = 'received'
-            """
-        )
-
-        index_statements = [
-            "CREATE INDEX idx_inventory_category ON inventory_items (category);",
-            "CREATE INDEX idx_inventory_stock ON inventory_items (quantity, minimum_stock);",
-            "CREATE INDEX idx_deliveries_status_date ON supplier_deliveries (status, expected_date);",
-            "CREATE INDEX idx_deliveries_item ON supplier_deliveries (item_id);",
-            "CREATE INDEX idx_transactions_status_date ON client_transactions (payment_status, transaction_date);",
-            "CREATE INDEX idx_transactions_movement_item ON client_transactions (movement_type, item_id);",
-            "CREATE INDEX idx_notifications_read_type ON notifications (is_read, type);",
-            "CREATE UNIQUE INDEX uq_notifications_title_type ON notifications (title, type);",
-            "CREATE INDEX idx_audit_logs_user_date ON audit_logs (user_id, created_at);",
+        
+        # Materials
+        materials = [
+            ("Cooking Oil", 4500.00, 500),
+            ("17kg Empty Boxes", 1250.00, 200),
+            ("1kg Plastic Packs", 1250.00, 500)
         ]
-        for statement in index_statements:
-            execute_ignore(cursor, statement, duplicate_codes=(1061,))
-
-        connection.commit()
-
-        cursor.execute("SELECT COUNT(*) FROM users")
-        user_count = cursor.fetchone()[0]
-        if user_count == 0:
-            print("Seeding default admin user...")
-            from werkzeug.security import generate_password_hash
-
+        for name, qty, low in materials:
             cursor.execute(
-                """
-                INSERT INTO users (full_name, username, email, password_hash, role, is_active)
-                VALUES (%s, %s, %s, %s, %s, TRUE)
-                """,
-                (
-                    "Admin User",
-                    "admin",
-                    "admin@yuraishabright.com",
-                    generate_password_hash("Admin123"),
-                    "admin",
-                ),
+                "INSERT INTO tbl_material (material_name, current_quantity, low_stock_threshold) VALUES (%s, %s, %s)",
+                (name, qty, low)
             )
 
-        cursor.execute("SELECT COUNT(*) FROM inventory_items")
-        inventory_count = cursor.fetchone()[0]
-        if inventory_count == 0:
-            print("Seeding sample IMS data...")
-            cursor.execute(
-                """
-                INSERT INTO inventory_items (item_name, category, quantity, unit, minimum_stock) VALUES
-                ('1kg Empty Boxes', 'box_1kg', 1250, 'Boxes', 200),
-                ('Cooking Oil Stock', 'cooking_oil', 4500, 'Liters', 500),
-                ('1kg Plastic Packs', 'plastic_1kg', 1250, 'Pcs', 500),
-                ('Finished 1kg Box', 'finished_goods', 120, 'Boxes', 20)
-                """
-            )
-            cursor.execute(
-                """
-                INSERT INTO supplier_deliveries (movement_type, supplier_name, item_id, quantity, expected_date, status) VALUES
-                ('inbound', 'Apex Logistics', 3, 500, CURDATE(), 'received'),
-                ('inbound', 'Bright Supply Trading', 2, 1000, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'pending'),
-                ('inbound', 'Metro Packaging', 1, 200, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'pending')
-                """
-            )
-            cursor.execute(
-                """
-                INSERT INTO client_transactions
-                (movement_type, item_id, quantity, unit, client_name, boxes_sold, amount, payment_status, transaction_date, notes) VALUES
-                ('outbound', 4, 50, 'Boxes', 'Kedai Runcit Seri Maju', 50, 1420.00, 'completed', DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'Monthly oil box delivery'),
-                ('outbound', 4, 30, 'Boxes', 'Pasar Mini Indah', 30, 845.00, 'pending', DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'Awaiting payment'),
-                ('outbound', 4, 40, 'Boxes', 'Restoran Cahaya', 40, 2210.00, 'completed', DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'Bulk order')
-                """
-            )
-            cursor.execute(
-                """
-                INSERT INTO notifications (title, message, type, is_read) VALUES
-                ('Low Stock: 1kg Plastic Packs', '1kg Plastic Packs has dropped below minimum stock level.', 'low_stock', FALSE),
-                ('Delayed Delivery: TRK-3', 'Metro Packaging delivery is overdue and needs follow-up.', 'delayed_delivery', FALSE),
-                ('System Ready', 'Inventory Management System modules are available.', 'general', TRUE)
-                """
-            )
-
-        default_category_rows = [
-            ("1kg Empty Boxes", "box_1kg", "Boxes", 200),
-            ("1kg Plastic Packs", "plastic_1kg", "Pcs", 500),
+        # Suppliers
+        suppliers = [
+            ("Apex Logistics", "123-456-7890", "contact@apexlogistics.com"),
+            ("Bright Supply Trading", "098-765-4321", "sales@brightsupply.com"),
+            ("Metro Packaging", "555-123-4567", "info@metropackaging.com")
         ]
-        for item_name, category, unit, minimum_stock in default_category_rows:
+        for name, phone, email in suppliers:
             cursor.execute(
-                """
-                INSERT INTO inventory_items (item_name, category, quantity, unit, minimum_stock)
-                SELECT %s, %s, 0, %s, %s
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM inventory_items WHERE category = %s
-                )
-                """,
-                (item_name, category, unit, minimum_stock, category),
+                "INSERT INTO tbl_supplier (supplier_name, contact_number, email) VALUES (%s, %s, %s)",
+                (name, phone, email)
             )
 
         connection.commit()
-        print("Migration and seed completed.")
-        print("Default admin login, if seeded: admin / Admin123")
+        print("Migration and seeding complete.")
 
-    except Error as exc:
-        print(f"Database migration failed: {exc}")
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
     finally:
-        if cursor is not None:
+        if 'cursor' in locals():
             cursor.close()
-        if connection is not None and connection.is_connected():
+        if 'connection' in locals() and connection.is_connected():
             connection.close()
-
 
 if __name__ == "__main__":
     main()
