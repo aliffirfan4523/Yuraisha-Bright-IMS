@@ -86,7 +86,7 @@ def get_dynamic_alerts(cursor):
             "title": f"Low Stock: {mat['material_name']}",
             "message": f"{mat['material_name']} is at {mat['current_quantity']} (threshold: {mat['low_stock_threshold']}).",
             "type": "low_stock",
-            "created_at": "Now"
+            "created_at": datetime.now()
         })
         
     # 2. Delayed deliveries
@@ -103,7 +103,7 @@ def get_dynamic_alerts(cursor):
             "title": f"Delayed Delivery: TRK-{d['delivery_id']}",
             "message": f"Delivery from {d['supplier_name'] or 'Unknown'} was expected on {date_str} and is now delayed.",
             "type": "delayed_delivery",
-            "created_at": "Now"
+            "created_at": datetime.now()
         })
         
     return alerts
